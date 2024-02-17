@@ -119,7 +119,7 @@ namespace MSEGui
 
                 foreach (var (lineItem, index) in Script.Strings.Select((x, index) => (x, index)))
                 {
-                    foreach (var item in lineItem.VisibleTexts)
+                    foreach (var item in lineItem.Texts)
                     {
                         strings.Add(new StringsListItem(index, item));
                     }
@@ -296,11 +296,11 @@ namespace MSEGui
                 {
                     var dat = new MSEScript(fileName);
 
-                    //using(var writer = new StreamWriter("temp.txt"))
+                    //using (var writer = new StreamWriter("temp.txt"))
                     //{
-                    //    foreach(var item in dat.TitleItems.Where(x=>x.Parameters.Count == 1).OrderBy(x => x.Parameters[0]))
+                    //    foreach (var (item,index) in dat.TitleItems.Where(x => x.Parameters.Count == 1).OrderBy(x => x.Parameters[0]).Select((x,index)=>(x,index)))
                     //    {
-                    //        writer.WriteLine(item.Parameters[0].ToString("X"));
+                    //        writer.WriteLine($"{index,-4}.{item.OffsetHex}={item.Parameters[0]:X}"); ;
                     //    }
                     //}
 
@@ -408,18 +408,20 @@ namespace MSEGui
         }
 
 
-        private void ImportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        private async void ImportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             IOUtility.ImportOthers(script);
+            await LoadOthers();
         }
         private void ExportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             IOUtility.ExportOthers(script, FileName, OnlyJapanese);
         }
 
-        private void ImportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        private async void ImportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             IOUtility.ImportStrings(script);
+            await LoadStrings();
         }
 
         private void ExportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)

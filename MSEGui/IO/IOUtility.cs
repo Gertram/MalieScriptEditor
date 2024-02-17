@@ -17,11 +17,13 @@ namespace MSEGui.IO
         {
             try
             {
-                var sfd = new SaveFileDialog();
-                sfd.DefaultExt = "json";
-                sfd.Filter = "JSON|*.json|Text|*.txt";
-                sfd.InitialDirectory = Path.GetDirectoryName(fileName);
-                sfd.FileName = Path.GetFileNameWithoutExtension(fileName) + "_strings";
+                var sfd = new SaveFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
+                    InitialDirectory = Path.GetDirectoryName(fileName),
+                    FileName = Path.GetFileNameWithoutExtension(fileName) + "_strings"
+                };
                 if (!(sfd.ShowDialog() is true))
                 {
                     return;
@@ -35,11 +37,12 @@ namespace MSEGui.IO
                             var jsonSettings = new JsonSerializerSettings();
                             jsonSettings.Formatting = Formatting.Indented;
                             JsonSerializer.CreateDefault(jsonSettings)
-                                .Serialize(jsonWriter, script.Strings.Select(x => x.Texts.Where(y => !y.IsDelimeter && y.Type == StringType.Text).Select(y => y.Text)));
+                                .Serialize(jsonWriter, script.Strings.Select(x => x.Texts.Select(y => y.Text)));
                         }
                         break;
                     case ".txt":
-                        File.WriteAllText(sfd.FileName, string.Join("\n\n", script.Strings.Select(x => string.Join("<br/>", x.Texts.Where(y => !y.IsDelimeter && y.Type == StringType.Text).Select(y => y.Text.Escape())))), Encoding.UTF8);
+                        File.WriteAllText(sfd.FileName, string.Join("\n\n", script.Strings
+                            .Select(x => string.Join("\n", x.Texts.Select(y => y.Text)))), Encoding.UTF8);
 
                         break;
                     default:
@@ -55,9 +58,11 @@ namespace MSEGui.IO
         {
             try
             {
-                var ofd = new OpenFileDialog();
-                ofd.DefaultExt = "josn";
-                ofd.Filter = "JSON|*.json|All text|*.txt";
+                var ofd = new OpenFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt"
+                };
                 if (!(ofd.ShowDialog() is true))
                 {
                     return;
@@ -73,7 +78,7 @@ namespace MSEGui.IO
                                 foreach (var (strings, index) in tokens.Select((x, index) => (x, index)))
                                 {
                                     var item = script.Strings[index];
-                                    foreach (var (stringItem, ind) in item.Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text).Select((x, ind) => (x, ind)))
+                                    foreach (var (stringItem, ind) in item.Texts.Select((x, ind) => (x, ind)))
                                     {
                                         stringItem.Text = strings[ind];
                                     }
@@ -83,36 +88,47 @@ namespace MSEGui.IO
                         break;
                     case ".txt":
                         {
-                            var text = File.ReadAllText(ofd.FileName);
-                            var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "<br/>" }, StringSplitOptions.RemoveEmptyEntries), index)))
-                            {
-                                var item = script.Strings[index];
-                                foreach (var (stringItem, ind) in item.Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text).Select((x, ind) => (x, ind)))
-                                {
-                                    stringItem.Text = strings[ind].Replace("\r\n", "\n");
-                                }
-                            }
+                            //var text = File.ReadAllText(ofd.FileName);
+                            //var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
+                            //foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "<br/>" }, StringSplitOptions.RemoveEmptyEntries), index)))
+                            //{
+                            //    var item = script.Strings[index];
+                            //    foreach (var (stringItem, ind) in item.Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text).Select((x, ind) => (x, ind)))
+                            //    {
+                            //        stringItem.Text = strings[ind].Replace("\r\n", "\n");
+                            //    }
+                            //}
+                            TXTUtil.ImportStrings(script, ofd.FileName);
                         }
                         break;
                     default:
                         break;
                 }
             }
-            catch (Exception exp)
+            catch (SoManyStringsException ex)
             {
-                MessageBox.Show(exp.ToString());
+                MessageBox.Show(ex.Message);
+            }
+            catch (SoManyLinesException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
             }
         }
         public static void ExportOthers(MSEScript script, string fileName,bool onlyJapanese)
         {
             try
             {
-                var sfd = new SaveFileDialog();
-                sfd.DefaultExt = "json";
-                sfd.Filter = "JSON|*.json|Text|*.txt";
-                sfd.InitialDirectory = Path.GetDirectoryName(fileName);
-                sfd.FileName = Path.GetFileNameWithoutExtension(fileName) + "_others";
+                var sfd = new SaveFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
+                    InitialDirectory = Path.GetDirectoryName(fileName),
+                    FileName = Path.GetFileNameWithoutExtension(fileName) + "_others"
+                };
                 if (!(sfd.ShowDialog() is true))
                 {
                     return;
@@ -131,7 +147,7 @@ namespace MSEGui.IO
                         }
                         break;
                     case ".txt":
-                        File.WriteAllText(sfd.FileName, string.Join("\n\n", contents.Select(x => string.Join("\n", x.Texts.Prepend(x.Title).Select(y => y.Text.Escape())))), Encoding.UTF8);
+                        File.WriteAllText(sfd.FileName, string.Join("\n\n", contents.Select(x => string.Join("\n", x.Texts.Prepend(x.Title).Select(y => y.Text)))), Encoding.UTF8);
                         break;
                     default:
                         break;
@@ -149,7 +165,7 @@ namespace MSEGui.IO
                 var ofd = new OpenFileDialog
                 {
                     DefaultExt = "json",
-                    Filter = "SJON|*.json|All text|*.txt"
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt"
                 };
                 if (!(ofd.ShowDialog() is true))
                 {
@@ -179,23 +195,36 @@ namespace MSEGui.IO
                         break;
                     case ".txt":
                         {
-                            var text = File.ReadAllText(ofd.FileName);
-                            var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(y => y.Unescape()), index)))
-                            {
-                                var key = strings.First();
-                                var content = script.ContentItems.First(x => x.Title.Text == key);
-                                foreach (var (stringItem, ind) in strings.Skip(1).Select((x, ind) => (x, ind)))
-                                {
-                                    content.Texts[ind].Text = stringItem;
-                                }
+                            //var text = File.ReadAllText(ofd.FileName);
+                            //var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
+                            //foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(y => y.Unescape()), index)))
+                            //{
+                            //    var key = strings.First();
+                            //    var content = script.ContentItems.First(x => x.Title.Text == key);
+                            //    foreach (var (stringItem, ind) in strings.Skip(1).Select((x, ind) => (x, ind)))
+                            //    {
+                            //        content.Texts[ind].Text = stringItem;
+                            //    }
 
-                            }
+                            //}
+                            TXTUtil.ImportOthers(script, ofd.FileName);
                         }
                         break;
                     default:
                         break;
                 }
+            }
+            catch (SoManyStringsException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (ContentItemNotFound ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (ContentItemNotAll ex)
+            {
+                MessageBox.Show(ex.Message);
             }
             catch (Exception exp)
             {
