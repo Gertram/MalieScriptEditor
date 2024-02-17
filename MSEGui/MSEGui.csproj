@@ -88,7 +88,7 @@
     </ApplicationDefinition>
     <Compile Include="ContentsListItem.cs" />
     <Compile Include="IO\IOUtility.cs" />
-    <Compile Include="IO\TXTStrings.cs" />
+    <Compile Include="IO\TXTUtil.cs" />
     <Compile Include="StringsListItem.cs" />
     <Compile Include="UserConfig.cs" />
     <Compile Include="FindWindow.xaml.cs" />
@@ -96,7 +96,6 @@
     <Compile Include="MultiKeyBinding.cs" />
     <Compile Include="MultiKeyGesture.cs" />
     <Compile Include="MultiKeyGestureConverter.cs" />
-    <Compile Include="StringHelpers.cs" />
     <Compile Include="WindowCommands.cs" />
     <Page Include="FindWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

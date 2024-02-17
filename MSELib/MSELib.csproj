@@ -46,6 +46,7 @@
     <Compile Include="MSEScript.cs" />
     <Compile Include="LineItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StringHelpers.cs" />
     <Compile Include="StringsItem.cs" />
     <Compile Include="TitleItem.cs" />
   </ItemGroup>

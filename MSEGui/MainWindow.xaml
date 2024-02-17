@@ -129,11 +129,6 @@
                                 VirtualizingPanel.IsContainerVirtualizable="True"
                                 SelectionChanged="ContentsListView_SelectionChanged"
                                 ScrollViewer.CanContentScroll="True">
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="Visibility" Value="{Binding Path=Visibile, Mode=OneWay}"/>
-                                    </Style>
-                                </ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid>

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Security.Cryptography;
 using System.Windows.Markup;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace MSELib
 {
@@ -21,6 +22,20 @@ namespace MSELib
         public List<ContentItem> ContentItems { get; set; }
         public byte[] Raw { get; set; }
         public List<LineItem> Strings { get; set; }
+        public MSEScript(byte[] data)
+        {
+            using (var reader = new BinaryReader(new MemoryStream(data)))
+            {
+                Magic = reader.ReadInt32();
+                ReadTitles(reader);
+                ReadContents(reader);
+                ReadRaw(reader);
+                ReadStrings(reader);
+            }
+        }
+        public MSEScript(string filename):this(File.ReadAllBytes(filename))
+        {
+        }
         private void ReadTitles(BinaryReader reader)
         {
             TitleItems = new List<TitleItem>();
@@ -106,9 +121,9 @@ namespace MSELib
                 }
                 ContentItems.Add(new ContentItem
                 {
-                    Title = new StringsItem(texts[0],false),
+                    Title = new StringsItem(texts[0]),
                     Offset = (uint)start,
-                    Texts = new List<StringsItem>(texts.Skip(1).Select(x=>new StringsItem(x,false)))
+                    Texts = new List<StringsItem>(texts.Skip(1).Select(x=>new StringsItem(x)))
                 });
             };
         }
@@ -137,22 +152,10 @@ namespace MSELib
                 var length = ranges[i].length;
                 reader.BaseStream.Position = startOffset + offset;
                 var bytes = reader.ReadBytes(length);
-                var text = new LineItem(Encoding.Unicode.GetString(bytes));
+                var line = Encoding.Unicode.GetString(bytes);
+                var text = new LineItem(line);
 
                 Strings.Add(text);
-            }
-        }
-        public MSEScript(string filename) 
-        {
-            byte[] data = File.ReadAllBytes(filename);
-
-            using(var reader = new BinaryReader(new MemoryStream(data)))
-            {
-                Magic = reader.ReadInt32();
-                ReadTitles(reader);
-                ReadContents(reader);
-                ReadRaw(reader);
-                ReadStrings(reader);
             }
         }
         public void WriteTitles(BinaryWriter writer)
@@ -173,12 +176,13 @@ namespace MSELib
         public void WriteContents(BinaryWriter writer)
         {
             var startPos = writer.BaseStream.Position;
+
             foreach(var contentItem in ContentItems)
             {
                 writer.Write((ushort)0x25a0);
                 foreach(var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
-                    var line = stringItem.Text + "\0";
+                    var line = stringItem.Dump() + "\0";
                     var bytes = Encoding.Unicode.GetBytes(line);
                     writer.Write(bytes);
                 }
@@ -191,7 +195,7 @@ namespace MSELib
                 writer.Write((ushort)0x25a0);
                 foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
-                    var line = stringItem.Text + "\0";
+                    var line = stringItem.Dump() + "\0";
                     var bytes = Encoding.Unicode.GetBytes(line);
                     writer.Write(bytes);
                 }
@@ -210,7 +214,8 @@ namespace MSELib
             foreach (var lineItem in Strings)
             {
                 writer.Write(offset);
-                var line = Encoding.Unicode.GetBytes(lineItem.Dump()+'\0');
+                var text = lineItem.Dump() + '\0';
+                var line = Encoding.Unicode.GetBytes(text);
                 lines.Add(line);
                 writer.Write(line.Length-sizeof(ushort));
                 offset += line.Length;
@@ -221,9 +226,9 @@ namespace MSELib
                 writer.Write(line);
             }
         }
-        public void Save(string fileName)
+        public byte[] Save()
         {
-            using(var stream = new MemoryStream())
+            using (var stream = new MemoryStream())
             using (var writer = new BinaryWriter(stream))
             {
                 writer.Write(Magic);
@@ -231,8 +236,12 @@ namespace MSELib
                 WriteContents(writer);
                 WriteRaw(writer);
                 WriteStrings(writer);
-                File.WriteAllBytes(fileName, stream.ToArray());
+                return stream.ToArray();
             }
+        }
+        public void Save(string fileName)
+        {
+            File.WriteAllBytes(fileName, Save().ToArray());
         }
     }
 }

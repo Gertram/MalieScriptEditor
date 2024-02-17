@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
+using System.Text.RegularExpressions;
 
 namespace MSELib
 {
@@ -10,6 +11,7 @@ namespace MSELib
         private List<StringsItem> texts;
 
         public event PropertyChangedEventHandler PropertyChanged;
+        public string Voice { get; set; }
         public List<StringsItem> Texts
         {
             get => texts;
@@ -17,44 +19,57 @@ namespace MSELib
             {
                 texts = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StringsItem)));
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(VisibleTexts)));
             }
         }
-        public IEnumerable<StringsItem> VisibleTexts => Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text);
+        public string End { get; private set; }
         public LineItem(string line)
         {
-            line = line.Replace("\f1", "[NAME]");
-            string current = "";
-            bool isDelimeter = false;
-            var strings = new List<StringsItem>();
-            void swap(){
-                if(current.Length != 0)
-                {
-                    strings.Add(new StringsItem(current,isDelimeter));
-                    current = "";
-                }
-                isDelimeter = !isDelimeter;
-            };
-            foreach(var sym in line)
+            line = line.Replace("\a\f1\0", "[NAME]");
+            var regex = new Regex(@"\a\u0008(?<voice>v_.*\d+)\0(?<content>.*)",RegexOptions.Singleline);
+            var match = regex.Match(line);
+            if (match.Success)
             {
-                var contains = chars.Contains(sym);
-                if (!isDelimeter && contains || isDelimeter && !contains)
-                {
-                    swap();
-                }
-
-                current += sym;
+                Voice = match.Groups["voice"].Value;
+                line = match.Groups["content"].Value;
             }
-            swap();
-            Texts = strings;
+            var startPosition = line.Length - 1;
+            for (; startPosition >= 0; startPosition--)
+            {
+                if (!chars.Contains(line[startPosition]))
+                {
+                    break;
+                }
+            }
+            if(startPosition != line.Length - 1)
+            {
+                End = line.Substring(startPosition+1);
+                line = line.Substring(0, startPosition+1);
+            }
+            else
+            {
+                End = "";
+            }
+            if (line.StartsWith("　そして、その中に、私のお墓があったことも……"))
+            {
+
+            }
+            Texts = line.Split('\n').Select(x => new StringsItem(x)).ToList();
+        }
+        private string GetVoicePath()
+        {
+            if(Voice == null)
+            {
+                return "";
+            }
+            return $"\a\b{Voice}\0";
         }
         public string Dump()
         {
-            return string.Join("", Texts.Select(x => x.Text.Replace("[NAME]","\f1")));
+            return GetVoicePath()+string.Join("\n", Texts.Select(x => x.Dump().Replace("[NAME]", "\a\f1\0"))) + End;
         }
         public override string ToString()
         {
-            return string.Join("\n", texts.Where(x=>!x.IsDelimeter && x.Type == StringType.Text));
+            return string.Join("\n", texts);
         }
     }
 }
