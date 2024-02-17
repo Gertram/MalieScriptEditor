@@ -30,27 +30,5 @@ namespace MSEGui
         public int Index { get; }
         public StringsItem Value { get; }
         public StringsItem Title { get; }
-        public bool OnlyJapanese
-        {
-            get => onlyJapanese;
-            set
-            {
-                onlyJapanese = value;
-                if (!onlyJapanese)
-                {
-                    Visibile = Visibility.Visible;
-                }
-                else if (Value.Text.ContainsJapanese())
-                {
-                    Visibile = Visibility.Visible;
-                }
-                else
-                {
-                    Visibile = Visibility.Collapsed;
-                }
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Visibile)));
-            }
-        }
-        public Visibility Visibile { get; set; } = Visibility.Visible;
     }
 }

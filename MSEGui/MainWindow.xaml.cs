@@ -22,6 +22,7 @@ using MSELib;
 using System.Globalization;
 using MSEGui.Config;
 using ConfigLib;
+using MSEGui.IO;
 
 namespace MSEGui
 {
@@ -41,7 +42,7 @@ namespace MSEGui
         private SelectedTab SelectedTab { get; set; } = SelectedTab.Strings;
         private bool IsChanged { get; set; } = false;
 
-        private Dat script;
+        private MSEScript script;
         private string fileName;
         private bool onlyJapanese;
         public bool OnlyJapanese
@@ -54,7 +55,7 @@ namespace MSEGui
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OnlyJapanese)));
             }
         }
-        public Dat Script
+        public MSEScript Script
         {
             get => script;
             set
@@ -110,7 +111,50 @@ namespace MSEGui
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Contents)));
             }
         }
-        private void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private async Task LoadStrings()
+        {
+            var task = Task.Run(() =>
+            {
+                var strings = new List<StringsListItem>();
+
+                foreach (var (lineItem, index) in Script.Strings.Select((x, index) => (x, index)))
+                {
+                    foreach (var item in lineItem.VisibleTexts)
+                    {
+                        strings.Add(new StringsListItem(index, item));
+                    }
+                }
+                return strings;
+            });
+            await task;
+            Strings = task.Result;
+        }
+        private async Task LoadOthers()
+        {
+            var task = Task.Run(() =>
+            {
+                var contents = new List<ContentsListItem>();
+
+                IEnumerable<ContentItem> contentItems = Script.ContentItems;
+
+                if (OnlyJapanese)
+                {
+                    contentItems = contentItems.Where(x => x.IsJapanese);
+                }
+
+                foreach (var (contentItem, index) in contentItems.Select((x, index) => (x, index)))
+                {
+                    foreach (var item in contentItem.Texts)
+                    {
+                        contents.Add(new ContentsListItem(index, contentItem.Title, item));
+                    }
+                }
+                return contents;
+            });
+            await task;
+            Contents = task.Result;
+        }
+        private async void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             try
             {
@@ -122,34 +166,15 @@ namespace MSEGui
                         Contents = null;
                         return;
                     }
-                    var strings = new List<StringsListItem>();
-
-                    foreach (var (lineItem,index) in Script.Strings.Select((x,index)=>(x,index)))
-                    {
-                        foreach (var item in lineItem.VisibleTexts)
-                        {
-                            strings.Add(new StringsListItem(index, item));
-                        }
-                    }
-                    var contents = new List<ContentsListItem>();
-
-                    foreach (var (contentItem,index) in Script.ContentItems.Select((x,index)=>(x,index)))
-                    {
-                        foreach (var item in contentItem.Texts)
-                        {
-                            contents.Add(new ContentsListItem(index,contentItem.Title, item)
-                            {
-                                OnlyJapanese=OnlyJapanese
-                            });
-                        }
-                    }
-
-                    Strings = strings;
-                    Contents = contents;
+                    var task1 = LoadStrings();
+                    var task2 = LoadOthers();
+                    await Task.WhenAll(task1, task2);
                 }
                 else if (e.PropertyName == nameof(OnlyJapanese))
                 {
-                    contents.ForEach(x => x.OnlyJapanese = OnlyJapanese);
+                    OnlyJapaneseCheckBox.IsEnabled = false;
+                    await LoadOthers();
+                    OnlyJapaneseCheckBox.IsEnabled = true;
                 }
             }
             catch (Exception ex)
@@ -162,7 +187,7 @@ namespace MSEGui
         {
             try
             {
-                App.LanguageChanged += App_LanguageChanged; ; ;
+                App.LanguageChanged += App_LanguageChanged;
 
                 CultureInfo currLang = App.Language;
 
@@ -176,7 +201,7 @@ namespace MSEGui
                         Tag = lang,
                         IsChecked = lang.Equals(currLang)
                     };
-                    menuLang.Click += MenuLang_Click; ; ;
+                    menuLang.Click += MenuLang_Click;
                     menuLanguage.Items.Add(menuLang);
                 }
             }
@@ -269,7 +294,15 @@ namespace MSEGui
                 }
                 var task = Task.Run(() =>
                 {
-                    var dat = new Dat(fileName);
+                    var dat = new MSEScript(fileName);
+
+                    //using(var writer = new StreamWriter("temp.txt"))
+                    //{
+                    //    foreach(var item in dat.TitleItems.Where(x=>x.Parameters.Count == 1).OrderBy(x => x.Parameters[0]))
+                    //    {
+                    //        writer.WriteLine(item.Parameters[0].ToString("X"));
+                    //    }
+                    //}
 
                     return dat;
                 });
@@ -318,10 +351,19 @@ namespace MSEGui
         {
             try
             {
+                if (File.Exists(fileName) && File.GetAttributes(fileName).HasFlag(FileAttributes.ReadOnly))
+                {
+                    MessageBox.Show(this.GetResourceString("m_FileReadOnly"));
+                    return;
+                }
                 Script.Save(fileName);
                 Title = fileName;
                 FileName = fileName;
                 IsChanged = false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                ReportError(string.Format(this.GetResourceString("m_FileWriteError"),fileName));
             }
             catch (Exception ex)
             {
@@ -368,194 +410,21 @@ namespace MSEGui
 
         private void ImportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            try
-            {
-                var ofd = new OpenFileDialog
-                {
-                    DefaultExt = "json",
-                    Filter = "SJON|*.json|All text|*.txt"
-                };
-                if (!(ofd.ShowDialog() is true))
-                {
-                    return;
-                }
-                switch (Path.GetExtension(ofd.FileName))
-                {
-                    case ".json":
-                        {
-                            using (var reader = new StreamReader(ofd.FileName))
-                            {
-                                var jsonReader = new JsonTextReader(reader);
-                                var tokens = JsonSerializer.CreateDefault().Deserialize<Dictionary<string, List<string>>>(jsonReader);
-                                foreach (var (pair, index) in tokens.Select((x, index) => (x, index)))
-                                {
-                                    var key = pair.Key;
-                                    var items = pair.Value;
-                                    var content = Script.ContentItems.First(x => x.Title.Text == key);
-                                    foreach (var (stringItem, ind) in items.Select((x, ind) => (x, ind)))
-                                    {
-                                        content.Texts[ind].Text = stringItem;
-                                    }
-                                }
-
-                            }
-                        }
-                        break;
-                    case ".txt":
-                        {
-                            var text = File.ReadAllText(ofd.FileName);
-                            var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(y => y.Unescape()), index)))
-                            {
-                                var key = strings.First();
-                                var content = Script.ContentItems.First(x => x.Title.Text == key);
-                                foreach (var (stringItem, ind) in strings.Skip(1).Select((x, ind) => (x, ind)))
-                                {
-                                    content.Texts[ind].Text = stringItem;
-                                }
-
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (Exception exp)
-            {
-                MessageBox.Show(exp.ToString());
-            }
+            IOUtility.ImportOthers(script);
         }
         private void ExportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            try
-            {
-                var sfd = new SaveFileDialog();
-                sfd.DefaultExt = "json";
-                sfd.Filter = "JSON|*.json|Text|*.txt";
-                sfd.InitialDirectory = Path.GetDirectoryName(FileName);
-                sfd.FileName = Path.GetFileNameWithoutExtension(FileName) + "_others";
-                if (!(sfd.ShowDialog() is true))
-                {
-                    return;
-                }
-                var contents = OnlyJapanese ? Script.ContentItems.Where(x => x.IsJapanese) : Script.ContentItems;
-                switch (Path.GetExtension(sfd.FileName))
-                {
-                    case ".json":
-                        using (var writer = new StreamWriter(sfd.FileName, false, Encoding.UTF8))
-                        {
-                            var jsonWriter = new JsonTextWriter(writer);
-                            var jsonSettings = new JsonSerializerSettings();
-                            jsonSettings.Formatting = Formatting.Indented;
-                            JsonSerializer.CreateDefault(jsonSettings)
-                                .Serialize(jsonWriter, contents.ToDictionary(x => x.Title, x => x.Texts));
-                        }
-                        break;
-                    case ".txt":
-                        File.WriteAllText(sfd.FileName, string.Join("\n\n", contents.Select(x => string.Join("\n", x.Texts.Prepend(x.Title).Select(y => y.Text.Escape())))), Encoding.UTF8);
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (Exception exp)
-            {
-                MessageBox.Show(exp.ToString());
-            }
+            IOUtility.ExportOthers(script, FileName, OnlyJapanese);
         }
 
         private void ImportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            try
-            {
-                var ofd = new OpenFileDialog();
-                ofd.DefaultExt = "josn";
-                ofd.Filter = "JSON|*.json|All text|*.txt";
-                if (!(ofd.ShowDialog() is true))
-                {
-                    return;
-                }
-                switch (Path.GetExtension(ofd.FileName))
-                {
-                    case ".json":
-                        {
-                            using (var reader = new StreamReader(ofd.FileName))
-                            {
-                                var jsonReader = new JsonTextReader(reader);
-                                var tokens = JsonSerializer.CreateDefault().Deserialize<List<List<string>>>(jsonReader);
-                                foreach (var (strings, index) in tokens.Select((x, index) => (x, index)))
-                                {
-                                    var item = Script.Strings[index];
-                                    foreach (var (stringItem, ind) in item.Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text).Select((x, ind) => (x, ind)))
-                                    {
-                                        stringItem.Text = strings[ind];
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    case ".txt":
-                        {
-                            var text = File.ReadAllText(ofd.FileName);
-                            var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "<br/>" }, StringSplitOptions.RemoveEmptyEntries), index)))
-                            {
-                                var item = Script.Strings[index];
-                                foreach (var (stringItem, ind) in item.Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text).Select((x, ind) => (x, ind)))
-                                {
-                                    stringItem.Text = strings[ind].Replace("\r\n", "\n");
-                                }
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (Exception exp)
-            {
-                MessageBox.Show(exp.ToString());
-            }
+            IOUtility.ImportStrings(script);
         }
 
         private void ExportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            try
-            {
-                var sfd = new SaveFileDialog();
-                sfd.DefaultExt = "json";
-                sfd.Filter = "JSON|*.json|Text|*.txt";
-                sfd.InitialDirectory = Path.GetDirectoryName(FileName);
-                sfd.FileName = Path.GetFileNameWithoutExtension(FileName) + "_strings";
-                if (!(sfd.ShowDialog() is true))
-                {
-                    return;
-                }
-                switch (Path.GetExtension(sfd.FileName))
-                {
-                    case ".json":
-                        using (var writer = new StreamWriter(sfd.FileName, false, Encoding.UTF8))
-                        {
-                            var jsonWriter = new JsonTextWriter(writer);
-                            var jsonSettings = new JsonSerializerSettings();
-                            jsonSettings.Formatting = Formatting.Indented;
-                            JsonSerializer.CreateDefault(jsonSettings)
-                                .Serialize(jsonWriter, Script.Strings.Select(x => x.Texts.Where(y => !y.IsDelimeter && y.Type == StringType.Text).Select(y => y.Text)));
-                        }
-                        break;
-                    case ".txt":
-                        File.WriteAllText(sfd.FileName, string.Join("\n\n", Script.Strings.Select(x => string.Join("<br/>", x.Texts.Where(y => !y.IsDelimeter && y.Type == StringType.Text).Select(y => y.Text.Escape())))), Encoding.UTF8);
-
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (Exception exp)
-            {
-                MessageBox.Show(exp.ToString());
-            }
+            IOUtility.ExportStrings(script, FileName);
         }
 
         private FindWindow FindWindow
