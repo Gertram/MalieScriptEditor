@@ -14,7 +14,7 @@ namespace MSELib
         Voice,
         Text
     }
-    public class Dat
+    public class MSEScript
     {
         public int Magic { get; set; }
         public List<TitleItem> TitleItems { get; set; }
@@ -28,10 +28,7 @@ namespace MSELib
             while (is_continue)
             {
                 var startIndex = reader.BaseStream.Position;
-                if (startIndex == 0x3772)
-                {
-
-                }
+                
                 var strLength = reader.ReadInt16();
                 var key = reader.ReadUInt16();
                 if (key != 0x8000)
@@ -51,6 +48,8 @@ namespace MSELib
                     }
                     if ((t & 0xFFFF) == 0x25a0)
                     {
+                        //for escape contents section size pointer
+                        parametersCount--;
                         is_continue = false;
                         break;
                     }
@@ -76,6 +75,7 @@ namespace MSELib
         private void ReadContents(BinaryReader reader)
         {
             bool is_continue = true;
+            var sectionSize = reader.ReadUInt32();
             ContentItems = new List<ContentItem>();
             reader.BaseStream.Position += sizeof(ushort);
             while (is_continue)
@@ -142,7 +142,7 @@ namespace MSELib
                 Strings.Add(text);
             }
         }
-        public Dat(string filename) 
+        public MSEScript(string filename) 
         {
             byte[] data = File.ReadAllBytes(filename);
 
@@ -172,10 +172,24 @@ namespace MSELib
         }
         public void WriteContents(BinaryWriter writer)
         {
+            var startPos = writer.BaseStream.Position;
             foreach(var contentItem in ContentItems)
             {
                 writer.Write((ushort)0x25a0);
                 foreach(var stringItem in contentItem.Texts.Prepend(contentItem.Title))
+                {
+                    var line = stringItem.Text + "\0";
+                    var bytes = Encoding.Unicode.GetBytes(line);
+                    writer.Write(bytes);
+                }
+            }
+            var bytesLength = writer.BaseStream.Position - startPos;
+            writer.BaseStream.Position = startPos;
+            writer.Write((int)bytesLength);
+            foreach (var contentItem in ContentItems)
+            {
+                writer.Write((ushort)0x25a0);
+                foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
                     var line = stringItem.Text + "\0";
                     var bytes = Encoding.Unicode.GetBytes(line);

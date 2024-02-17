@@ -87,6 +87,8 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="ContentsListItem.cs" />
+    <Compile Include="IO\IOUtility.cs" />
+    <Compile Include="IO\TXTStrings.cs" />
     <Compile Include="StringsListItem.cs" />
     <Compile Include="UserConfig.cs" />
     <Compile Include="FindWindow.xaml.cs" />
