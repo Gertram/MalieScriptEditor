@@ -356,10 +356,16 @@ namespace MSEGui
                     MessageBox.Show(this.GetResourceString("m_FileReadOnly"));
                     return;
                 }
-                Script.Save(fileName);
-                Title = fileName;
-                FileName = fileName;
-                IsChanged = false;
+                var task = Task.Run(() =>
+                {
+                    Script.Save(fileName);
+                });
+                task.GetAwaiter().OnCompleted(() =>
+                {
+                    Title = fileName;
+                    FileName = fileName;
+                    IsChanged = false;
+                });
             }
             catch (UnauthorizedAccessException)
             {
