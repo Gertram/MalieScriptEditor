@@ -53,7 +53,7 @@ namespace MSELib
             {
 
             }
-            Texts = line.Split('\n').Select(x => new StringsItem(x)).ToList();
+            Texts = line.Split('\n').Select(x => new StringsItem(0,x)).ToList();
         }
         private string GetVoicePath()
         {

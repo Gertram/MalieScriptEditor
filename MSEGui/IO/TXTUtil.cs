@@ -77,7 +77,7 @@ namespace MSEGui.IO
                     }
                     else
                     {
-                        texts.Add(new StringsItem(line, false));
+                        texts.Add(new StringsItem(0,line, false));
                     }
                 }
                 else

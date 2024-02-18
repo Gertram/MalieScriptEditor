@@ -14,7 +14,7 @@ namespace MSELib
         JZ = 0x2,
         CALL_UINT_ID = 0x3,
         CALL_BYTE_ID = 0x4,
-        MASK = 0x5,
+        MASK_VEIP = 0x5,
         PUSH_R32 = 0x6,
         POP_R32 = 0x7,
         PUSH_INT32 = 0x8,
@@ -59,28 +59,25 @@ namespace MSELib
         FPCOPY = 0x2F,
         FPGET = 0x30,
         INITSTACK = 0x31,
-        UNKNOWN2 = 0x32,
+        UNKNOWN_2 = 0x32,
         RET = 0x33,
     }
     public enum ArgumentType
     {
-        BYTE,
-        SHORT,
-        INT,
-        STR
+        BYTE = 0x0,
+        SHORT = 0x1,
+        INT = 0x2,
+        FUNCTION_BYTE_ID = 0x3,
+        FUNCTION_INT_ID = 0x4,
+        STR_BYTE_ID = 0x5,
+        STR_SHORT_ID = 0x6,
+        STR_INT_ID = 0x7,
     }
     public class ArgumentItem
     {
         public int Offset { get; set; }
         public ArgumentType Type;
         public object Value;
-
-        public ArgumentItem(int offset, ArgumentType type, object value)
-        {
-            Offset = offset;
-            Type = type;
-            Value = value;
-        }
     }
     public class CommandItem
     {
