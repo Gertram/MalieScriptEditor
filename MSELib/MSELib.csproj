@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BinaryReaderHelper.cs" />
+    <Compile Include="CommandType.cs" />
     <Compile Include="ContentItem.cs" />
     <Compile Include="MSEScript.cs" />
     <Compile Include="LineItem.cs" />
