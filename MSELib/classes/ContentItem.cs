@@ -2,7 +2,7 @@
 using System.Linq;
 using System.ComponentModel;
 
-namespace MSELib
+namespace MSELib.classes
 {
     public class ContentItem : INotifyPropertyChanged
     {

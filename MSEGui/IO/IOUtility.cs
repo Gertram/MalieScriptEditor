@@ -133,7 +133,7 @@ namespace MSEGui.IO
                 {
                     return;
                 }
-                var contents = onlyJapanese ? script.ContentItems.Where(x => x.IsJapanese) : script.ContentItems;
+                var contents = onlyJapanese ? script.ContentItems.Values.Where(x => x.IsJapanese) : script.ContentItems.Values;
                 switch (Path.GetExtension(sfd.FileName))
                 {
                     case ".json":
@@ -183,7 +183,10 @@ namespace MSEGui.IO
                                 {
                                     var key = pair.Key;
                                     var items = pair.Value;
-                                    var content = script.ContentItems.First(x => x.Title.Text == key);
+                                    if(!script.ContentItems.TryGetValue(key,out var content))
+                                    {
+                                        throw new ContentItemNotFound(key, 0);
+                                    }
                                     foreach (var (stringItem, ind) in items.Select((x, ind) => (x, ind)))
                                     {
                                         content.Texts[ind].Text = stringItem;

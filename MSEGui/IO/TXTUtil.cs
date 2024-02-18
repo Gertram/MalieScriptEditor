@@ -100,11 +100,9 @@ namespace MSEGui.IO
                     {
                         continue;
                     }
-
-                    var contentItem = script.ContentItems.FirstOrDefault(x => x.Title.Text == line);
-                    if (contentItem == null)
-                    {   
-                        throw new ContentItemNotFound(line,lineIndex-1);
+                    if (!script.ContentItems.TryGetValue(line, out var contentItem))
+                    {
+                        throw new ContentItemNotFound(line, lineIndex - 1);
                     }
                     LoadStrings(reader, contentItem.Texts, ref lineIndex);
                 }

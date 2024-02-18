@@ -19,6 +19,7 @@ using System.Security.Cryptography;
 using ControlzEx.Standard;
 using System.Xml.Serialization;
 using MSELib;
+using MSELib.classes;
 using System.Globalization;
 using MSEGui.Config;
 using ConfigLib;
@@ -111,31 +112,24 @@ namespace MSEGui
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Contents)));
             }
         }
-        private async Task LoadStrings()
+        private void LoadStrings()
         {
-            var task = Task.Run(() =>
-            {
-                var strings = new List<StringsListItem>();
+            var strings = new List<StringsListItem>();
 
-                foreach (var (lineItem, index) in Script.Strings.Select((x, index) => (x, index)))
-                {
-                    foreach (var item in lineItem.Texts)
-                    {
-                        strings.Add(new StringsListItem(index, item));
-                    }
-                }
-                return strings;
-            });
-            await task;
-            Strings = task.Result;
-        }
-        private async Task LoadOthers()
-        {
-            var task = Task.Run(() =>
+            foreach (var (lineItem, index) in Script.Strings.Select((x, index) => (x, index)))
             {
+                foreach (var item in lineItem.Texts)
+                {
+                    strings.Add(new StringsListItem(index, item));
+                }
+            }
+            Strings = strings;
+        }
+        private void LoadOthers()
+        {
                 var contents = new List<ContentsListItem>();
 
-                IEnumerable<ContentItem> contentItems = Script.ContentItems;
+                IEnumerable<ContentItem> contentItems = Script.ContentItems.Values;
 
                 if (OnlyJapanese)
                 {
@@ -149,12 +143,9 @@ namespace MSEGui
                         contents.Add(new ContentsListItem(index, contentItem.Title, item));
                     }
                 }
-                return contents;
-            });
-            await task;
-            Contents = task.Result;
+            Contents = contents;
         }
-        private async void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             try
             {
@@ -166,14 +157,13 @@ namespace MSEGui
                         Contents = null;
                         return;
                     }
-                    var task1 = LoadStrings();
-                    var task2 = LoadOthers();
-                    await Task.WhenAll(task1, task2);
+                    LoadStrings();
+                    LoadOthers();
                 }
                 else if (e.PropertyName == nameof(OnlyJapanese))
                 {
                     OnlyJapaneseCheckBox.IsEnabled = false;
-                    await LoadOthers();
+                    LoadOthers();
                     OnlyJapaneseCheckBox.IsEnabled = true;
                 }
             }
@@ -292,29 +282,23 @@ namespace MSEGui
                 {
                     return;
                 }
-                var task = Task.Run(() =>
-                {
-                    var dat = new MSEScript(fileName);
+                var dat = new MSEScript(fileName);
 
-                    //using (var writer = new StreamWriter("temp.txt"))
-                    //{
-                    //    foreach (var (item,index) in dat.TitleItems.Where(x => x.Parameters.Count == 1).OrderBy(x => x.Parameters[0]).Select((x,index)=>(x,index)))
-                    //    {
-                    //        writer.WriteLine($"{index,-4}.{item.OffsetHex}={item.Parameters[0]:X}"); ;
-                    //    }
-                    //}
+                //using (var writer = new StreamWriter("temp.txt"))
+                //{
+                //    foreach (var (item,index) in dat.TitleItems.Where(x => x.Parameters.Count == 1).OrderBy(x => x.Parameters[0]).Select((x,index)=>(x,index)))
+                //    {
+                //        writer.WriteLine($"{index,-4}.{item.OffsetHex}={item.Parameters[0]:X}"); ;
+                //    }
+                //}
 
-                    return dat;
-                });
-                task.GetAwaiter().OnCompleted(() =>
-                {
-                    Script = task.Result;
-                    Config.LastFile = fileName;
-                    FileName = fileName;
-                    Title = FileName;
+                Script = dat;
+                Config.LastFile = fileName;
+                FileName = fileName;
+                Title = FileName;
 
-                    IsChanged = false;
-                });
+                IsChanged = false;
+
             }
             catch (Exception ex)
             {
@@ -356,16 +340,12 @@ namespace MSEGui
                     MessageBox.Show(this.GetResourceString("m_FileReadOnly"));
                     return;
                 }
-                var task = Task.Run(() =>
-                {
-                    Script.Save(fileName);
-                });
-                task.GetAwaiter().OnCompleted(() =>
-                {
-                    Title = fileName;
-                    FileName = fileName;
-                    IsChanged = false;
-                });
+                Script.Save(fileName);
+
+                Title = fileName;
+                FileName = fileName;
+                IsChanged = false;
+
             }
             catch (UnauthorizedAccessException)
             {
@@ -414,20 +394,20 @@ namespace MSEGui
         }
 
 
-        private async void ImportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        private void ImportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             IOUtility.ImportOthers(script);
-            await LoadOthers();
+            LoadOthers();
         }
         private void ExportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             IOUtility.ExportOthers(script, FileName, OnlyJapanese);
         }
 
-        private async void ImportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        private void ImportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
             IOUtility.ImportStrings(script);
-            await LoadStrings();
+            LoadStrings();
         }
 
         private void ExportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
