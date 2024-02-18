@@ -178,6 +178,23 @@ namespace MSELib
             ReadFunctions(reader);
             ReadLabels(reader);
         }
+        private string ReadString(BinaryReader reader)
+        {
+            var start = reader.BaseStream.Position;
+            while (reader.ReadUInt16() != 0)
+            {
+            }
+            var end = reader.BaseStream.Position;
+            reader.BaseStream.Position = start;
+            var length = (int)(end - start);
+            var bytes = reader.ReadBytes(length);
+            var text = Encoding.Unicode.GetString(bytes).TrimEnd('\0');
+            if (text == "\a\f1")
+            {
+                text = "[NAME]"+ReadString(reader);
+            }
+            return text;
+        }
         private void ReadContents(BinaryReader reader)
         {
             bool is_continue = true;
@@ -188,15 +205,8 @@ namespace MSELib
             while (is_continue)
             {
                 var start = reader.BaseStream.Position;
-                while (reader.ReadUInt16() != 0)
-                {
-                }
-                var end = reader.BaseStream.Position;
-                reader.BaseStream.Position = start;
-                var length = (int)(end - start);
-                var bytes = reader.ReadBytes(length);
-                var text = Encoding.Unicode.GetString(bytes).TrimEnd('\0');
                 var offset = (uint)(start - contentOffset);
+                var text = ReadString(reader);
                 var stringItem = new StringsItem(offset, text);
                 ContentStringsOffsets.Add(offset, stringItem);
                 if (text.StartsWith("■"))
@@ -406,7 +416,7 @@ namespace MSELib
                         }
                     }
                     stringItem.Offset = offset;
-                    var line = stringItem.Dump() + "\0";
+                    var line = stringItem.Dump().Replace("[NAME]", "\a\f1\0") + "\0";
                     var bytes = Encoding.Unicode.GetBytes(line);
                     writer.Write(bytes);
                 }
@@ -418,7 +428,7 @@ namespace MSELib
             {
                 foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
-                    var line = stringItem.Dump() + "\0";
+                    var line = stringItem.Dump().Replace("[NAME]", "\a\f1\0") + "\0";
                     var bytes = Encoding.Unicode.GetBytes(line);
                     writer.Write(bytes);
                 }

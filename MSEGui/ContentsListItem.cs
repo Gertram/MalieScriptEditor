@@ -6,8 +6,6 @@ namespace MSEGui
 {
     public class ContentsListItem : INotifyPropertyChanged
     {
-        private bool onlyJapanese;
-
         public ContentsListItem(int index,StringsItem title, StringsItem value)
         {
             Index = index;
