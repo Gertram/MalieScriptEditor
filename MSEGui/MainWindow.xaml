@@ -138,7 +138,7 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding Path=Index, Mode=OneWay}" VerticalAlignment="Center" Margin="5,0"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Path=Title.ClearedText, Mode=OneWay}" VerticalAlignment="Center" Margin="5,0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Path=Title.Text, Mode=OneWay}" VerticalAlignment="Center" Margin="5,0" />
                                             <TextBox Grid.Column="2" Text="{Binding Path=Value.Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                      VerticalAlignment="Center"
                                                      AcceptsReturn="True" GotFocus="TextBox_GotFocus"/>

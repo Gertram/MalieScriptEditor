@@ -10,90 +10,74 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Collections;
 using System.Reflection.Emit;
 using System.Xml.Linq;
-using System.Text.RegularExpressions;
+using MSELib.classes;
 
 namespace MSELib
 {
-    public class VarItem
-    {
-
-        public string Name { get; set; }
-        public List<uint> Parameters { get; set; }
-    }
-    public class FunctionItem
-    {
-        public string Name { get; set; }
-        public uint Id { get; set; }
-        public uint VMCodeOffset { get; set; }
-        public uint Reserved0 { get; set; }
-    }
-    public class LabelItem
-    {
-        public string Name { get; set; }
-        public uint VMCodeOffset { get; set; }
-    }
     public class MSEScript
     {
-        public static IReadOnlyDictionary<CommandType, IReadOnlyList<ArgumentType>> CommandsDict = new Dictionary<CommandType, IReadOnlyList<ArgumentType>>
+        public static IReadOnlyList<(CommandType, IReadOnlyList<ArgumentType>)> CommandsDict = new List<(CommandType, IReadOnlyList<ArgumentType>)>
         {
-            {CommandType.JMP, new List<ArgumentType>() {ArgumentType.INT} },
-            {CommandType.JNZ, new List<ArgumentType>() {ArgumentType.INT} },
-            {CommandType.JZ, new List<ArgumentType>() {ArgumentType.INT} },
-            {CommandType.CALL_UINT_ID, new List<ArgumentType>() {ArgumentType.FUNCTION_INT_ID,ArgumentType.BYTE} },
-            {CommandType.CALL_BYTE_ID, new List<ArgumentType>() {ArgumentType.FUNCTION_BYTE_ID,ArgumentType.BYTE} },
-            {CommandType.MASK_VEIP, new List<ArgumentType>() { } },
-            {CommandType.PUSH_R32, new List<ArgumentType>() { } },
-            {CommandType.POP_R32, new List<ArgumentType>() { } },
-            {CommandType.PUSH_INT32, new List<ArgumentType>() { ArgumentType.INT} },
-            {CommandType.PUSH_STR_BYTE, new List<ArgumentType>() { ArgumentType.STR_BYTE_ID} },
-            {CommandType.PUSH_STR_SHORT, new List<ArgumentType>() { ArgumentType.STR_SHORT_ID} },
-            {CommandType.NONE, new List<ArgumentType>() {  } },
-            {CommandType.PUSH_STR_INT, new List<ArgumentType>() { ArgumentType.STR_INT_ID} },
-            {CommandType.PUSH_UINT32, new List<ArgumentType>() { ArgumentType.INT} },
-            {CommandType.POP, new List<ArgumentType>() {} },
-            {CommandType.PUSH_0, new List<ArgumentType>() {} },
-            {CommandType.UNKNOWN_1, new List<ArgumentType>() {} },
-            {CommandType.PUSH_0x, new List<ArgumentType>() { ArgumentType.BYTE} },
-            {CommandType.PUSH_SP, new List<ArgumentType>() { } },
-            {CommandType.NEG, new List<ArgumentType>() { } },
-            {CommandType.ADD, new List<ArgumentType>() { } },
-            {CommandType.SUB, new List<ArgumentType>() { } },
-            {CommandType.MUL, new List<ArgumentType>() { } },
-            {CommandType.DIV, new List<ArgumentType>() { } },
-            {CommandType.MOD, new List<ArgumentType>() { } },
-            {CommandType.AND, new List<ArgumentType>() { } },
-            {CommandType.OR, new List<ArgumentType>() { } },
-            {CommandType.XOR, new List<ArgumentType>() { } },
-            {CommandType.NOT, new List<ArgumentType>() { } },
-            {CommandType.BOOL1, new List<ArgumentType>() { } },
-            {CommandType.BOOL2, new List<ArgumentType>() { } },
-            {CommandType.BOOL3, new List<ArgumentType>() { } },
-            {CommandType.BOOL4, new List<ArgumentType>() { } },
-            {CommandType.ISL, new List<ArgumentType>() { } },
-            {CommandType.ISLE, new List<ArgumentType>() { } },
-            {CommandType.ISNLE, new List<ArgumentType>() { } },
-            {CommandType.ISNL, new List<ArgumentType>() { } },
-            {CommandType.ISEQ, new List<ArgumentType>() { } },
-            {CommandType.ISNEQ, new List<ArgumentType>() { } },
-            {CommandType.SHL, new List<ArgumentType>() { } },
-            {CommandType.SAR, new List<ArgumentType>() { } },
-            {CommandType.INC, new List<ArgumentType>() { } },
-            {CommandType.DEC, new List<ArgumentType>() { } },
-            {CommandType.ADD_REG, new List<ArgumentType>() { } },
-            {CommandType.DEBUG, new List<ArgumentType>() { } },
-            {CommandType.CALL_UINT_NO_PARAM, new List<ArgumentType>() { ArgumentType.FUNCTION_INT_ID } },
-            {CommandType.ADD_2, new List<ArgumentType>() { } },
-            {CommandType.FPCOPY, new List<ArgumentType>() { } },
-            {CommandType.FPGET, new List<ArgumentType>() { } },
-            {CommandType.INITSTACK, new List<ArgumentType>() { ArgumentType.INT } },
-            {CommandType.UNKNOWN_2, new List<ArgumentType>() { } },
-            {CommandType.RET, new List<ArgumentType>() { ArgumentType.BYTE } },
+            (CommandType.JMP, new List<ArgumentType>() {ArgumentType.INT} ),
+            (CommandType.JNZ, new List<ArgumentType>() {ArgumentType.INT} ),
+            (CommandType.JZ, new List<ArgumentType>() {ArgumentType.INT} ),
+            (CommandType.CALL_UINT_ID, new List<ArgumentType>() {ArgumentType.FUNCTION_INT_ID,ArgumentType.BYTE} ),
+            (CommandType.CALL_BYTE_ID, new List<ArgumentType>() {ArgumentType.FUNCTION_BYTE_ID,ArgumentType.BYTE} ),
+            (CommandType.MASK_VEIP, new List<ArgumentType>() { } ),
+            (CommandType.PUSH_R32, new List<ArgumentType>() { } ),
+            (CommandType.POP_R32, new List<ArgumentType>() { } ),
+            (CommandType.PUSH_INT32, new List<ArgumentType>() { ArgumentType.INT} ),
+            (CommandType.PUSH_STR_BYTE, new List<ArgumentType>() { ArgumentType.STR_BYTE_ID} ),
+            (CommandType.PUSH_STR_SHORT, new List<ArgumentType>() { ArgumentType.STR_SHORT_ID} ),
+            (CommandType.NONE, new List<ArgumentType>() {  } ),
+            (CommandType.PUSH_STR_INT, new List<ArgumentType>() { ArgumentType.STR_INT_ID} ),
+            (CommandType.PUSH_UINT32, new List<ArgumentType>() { ArgumentType.INT} ),
+            (CommandType.POP, new List<ArgumentType>() {} ),
+            (CommandType.PUSH_0, new List<ArgumentType>() {} ),
+            (CommandType.UNKNOWN_1, new List<ArgumentType>() {} ),
+            (CommandType.PUSH_0x, new List<ArgumentType>() { ArgumentType.BYTE} ),
+            (CommandType.PUSH_SP, new List<ArgumentType>() { } ),
+            (CommandType.NEG, new List<ArgumentType>() { } ),
+            (CommandType.ADD, new List<ArgumentType>() { } ),
+            (CommandType.SUB, new List<ArgumentType>() { } ),
+            (CommandType.MUL, new List<ArgumentType>() { } ),
+            (CommandType.DIV, new List<ArgumentType>() { } ),
+            (CommandType.MOD, new List<ArgumentType>() { } ),
+            (CommandType.AND, new List<ArgumentType>() { } ),
+            (CommandType.OR, new List<ArgumentType>() { } ),
+            (CommandType.XOR, new List<ArgumentType>() { } ),
+            (CommandType.NOT, new List<ArgumentType>() { } ),
+            (CommandType.BOOL1, new List<ArgumentType>() { } ),
+            (CommandType.BOOL2, new List<ArgumentType>() { } ),
+            (CommandType.BOOL3, new List<ArgumentType>() { } ),
+            (CommandType.BOOL4, new List<ArgumentType>() { } ),
+            (CommandType.ISL, new List<ArgumentType>() { } ),
+            (CommandType.ISLE, new List<ArgumentType>() { } ),
+            (CommandType.ISNLE, new List<ArgumentType>() { } ),
+            (CommandType.ISNL, new List<ArgumentType>() { } ),
+            (CommandType.ISEQ, new List<ArgumentType>() { } ),
+            (CommandType.ISNEQ, new List<ArgumentType>() { } ),
+            (CommandType.SHL, new List<ArgumentType>() { } ),
+            (CommandType.SAR, new List<ArgumentType>() { } ),
+            (CommandType.INC, new List<ArgumentType>() { } ),
+            (CommandType.DEC, new List<ArgumentType>() { } ),
+            (CommandType.ADD_REG, new List<ArgumentType>() { } ),
+            (CommandType.DEBUG, new List<ArgumentType>() { } ),
+            (CommandType.CALL_UINT_NO_PARAM, new List<ArgumentType>() { ArgumentType.FUNCTION_INT_ID } ),
+            (CommandType.ADD_2, new List<ArgumentType>() { } ),
+            (CommandType.FPCOPY, new List<ArgumentType>() { } ),
+            (CommandType.FPGET, new List<ArgumentType>() { } ),
+            (CommandType.INITSTACK, new List<ArgumentType>() { ArgumentType.INT } ),
+            (CommandType.UNKNOWN_2, new List<ArgumentType>() { } ),
+            (CommandType.RET, new List<ArgumentType>() { ArgumentType.BYTE } )
         };
-        public List<ContentItem> ContentItems { get; set; }
-        private Dictionary<string, VarItem> Vars { get; set; }
-        private Dictionary<string, FunctionItem> Functions { get; set; }
-        private Dictionary<string, LabelItem> Labels { get; set; }
+        public Dictionary<string, VarItem> Vars { get; set; }
+        public Dictionary<string, FunctionItem> Functions { get; set; }
+        public Dictionary<string, LabelItem> Labels { get; set; }
+        public Dictionary<string,ContentItem> ContentItems { get; set; }
         private Dictionary<uint, StringsItem> ContentStringsOffsets { get; set; } = new Dictionary<uint, StringsItem>();
+        public List<CommandItem> Commands { get; set; }
+        private uint Magic { get; set; }
         public int VMCodeLength { get; set; }
         public List<LineItem> Strings { get; set; }
         public MSEScript(byte[] data)
@@ -145,7 +129,6 @@ namespace MSELib
             }
             Vars = vars;
         }
-        private uint Magic { get; set; }
         private void ReadFunctions(BinaryReader reader)
         {
             Magic = reader.ReadUInt32();
@@ -200,7 +183,7 @@ namespace MSELib
             bool is_continue = true;
             var sectionSize = reader.ReadUInt32();
             var contentOffset = reader.BaseStream.Position;
-            ContentItems = new List<ContentItem>();
+            ContentItems = new Dictionary<string, ContentItem>();
             ContentItem contentItem = null;
             while (is_continue)
             {
@@ -213,21 +196,18 @@ namespace MSELib
                 var length = (int)(end - start);
                 var bytes = reader.ReadBytes(length);
                 var text = Encoding.Unicode.GetString(bytes).TrimEnd('\0');
-                var stringItem = new StringsItem((uint)start, text);
                 var offset = (uint)(start - contentOffset);
+                var stringItem = new StringsItem(offset, text);
                 ContentStringsOffsets.Add(offset, stringItem);
                 if (text.StartsWith("■"))
                 {
-                    if(contentItem != null)
-                    {
-                        ContentItems.Add(contentItem);
-                    }
                     contentItem = new ContentItem
                     {
                         Title = stringItem,
                         Offset = (uint)start,
                         Texts = new List<StringsItem>()
                     };
+                    ContentItems.Add(text.Escape(), contentItem);
                 }
                 else
                 {
@@ -235,17 +215,15 @@ namespace MSELib
                 }
                 if (text == "■シナリオ終了\n")
                 {
-                    ContentItems.Add(contentItem);
                     break;
                 }
             };
         }
-        public List<CommandItem> Commands { get; set; }
         private void AddStringArgument(uint offset,ArgumentItem argument)
         {
             if(!ContentStringsOffsets.TryGetValue(offset,out var stringsItem))
             {
-                throw new Exception();
+                throw new Exception("Doesn't found string for argument");
             }
             stringsItem.Arguments.Add(argument);
         }
@@ -259,40 +237,40 @@ namespace MSELib
             switch (argumentType)
             {
                 case ArgumentType.BYTE:
-                    argument.Value = reader.ReadByte();
+                    argument.ByteValue = reader.ReadByte();
                     break;
                 case ArgumentType.SHORT:
-                    argument.Value = reader.ReadUInt16();
+                    argument.UshortValue = reader.ReadUInt16();
                     break;
                 case ArgumentType.INT:
-                    argument.Value = reader.ReadUInt32();
+                    argument.UintValue = reader.ReadUInt32();
                     break;
                 case ArgumentType.STR_BYTE_ID:
                     {
                         var offset = reader.ReadByte();
-                        argument.Value = offset;
+                        argument.ByteValue = offset;
                         AddStringArgument(offset, argument);
                     }
                     break;
                 case ArgumentType.STR_SHORT_ID:
                     {
                         var offset = reader.ReadUInt16();
-                        argument.Value = offset;
+                        argument.UshortValue = offset;
                         AddStringArgument(offset, argument);
                     }
                     break;
                 case ArgumentType.STR_INT_ID:
                     {
                         var offset = reader.ReadUInt32();
-                        argument.Value = offset;
+                        argument.UintValue = offset;
                         AddStringArgument(offset, argument);
                     }
                     break;
                 case ArgumentType.FUNCTION_BYTE_ID:
-                    argument.Value = reader.ReadByte();
+                    argument.ByteValue = reader.ReadByte();
                     break;
                 case ArgumentType.FUNCTION_INT_ID:
-                    argument.Value = reader.ReadUInt32();
+                    argument.UintValue = reader.ReadUInt32();
                     break;
                 default:
                     throw new NotImplementedException();
@@ -309,15 +287,20 @@ namespace MSELib
             {
                 var offset = reader.BaseStream.Position;
                 var code = reader.ReadByte();
-                var commandType = (CommandType)code;
-                var argumentsTypes = CommandsDict[commandType];
+                var (commandType,argumentsTypes) = CommandsDict[code];
                 var arguments = argumentsTypes.Select(
                     argumentType => ParseArgument(reader, argumentType)).ToList();
                 var command = new CommandItem((int)offset, commandType, arguments);
                 commands.Add(command);
             }
             Commands = commands;
-
+            foreach(var str in ContentStringsOffsets)
+            {
+                if(str.Value.Arguments.Count == 0 && str.Value.Text != "[EMPTY]")
+                {
+                    throw new Exception("Some content string doesn't used. May be error in code");
+                }
+            }
         }
         private void ReadStrings(BinaryReader reader)
         {
@@ -394,24 +377,32 @@ namespace MSELib
         {
             var startPos = writer.BaseStream.Position;
 
-            foreach (var contentItem in ContentItems)
+            foreach (var contentItem in ContentItems.Values)
             {
                 foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
                     var offset = (uint)(writer.BaseStream.Position - startPos);
                     foreach (var arg in stringItem.Arguments)
                     {
-                        if (arg.Type is ArgumentType.STR_BYTE_ID && (byte)arg.Value == stringItem.Offset)
+                        if (arg.Type is ArgumentType.STR_BYTE_ID)
                         {
-                            arg.Value = (byte)offset;
+                            if(offset > 0xFF)
+                            {
+                                throw new ArgumentOutOfRangeException();
+                            }
+                            arg.ByteValue = (byte)offset;
                         }
-                        else if (arg.Type is ArgumentType.STR_SHORT_ID && (ushort)arg.Value == stringItem.Offset)
+                        else if (arg.Type is ArgumentType.STR_SHORT_ID)
                         {
-                            arg.Value = (ushort)offset;
+                            if (offset > 0xFFFF)
+                            {
+                                throw new ArgumentOutOfRangeException();
+                            }
+                            arg.UshortValue = (ushort)offset;
                         }
-                        else if (arg.Type is ArgumentType.STR_INT_ID && (uint)arg.Value == stringItem.Offset)
+                        else if (arg.Type is ArgumentType.STR_INT_ID)
                         {
-                            arg.Value = (uint)offset;
+                            arg.UintValue = offset;
                         }
                     }
                     stringItem.Offset = offset;
@@ -423,7 +414,7 @@ namespace MSELib
             var bytesLength = writer.BaseStream.Position - startPos;
             writer.BaseStream.Position = startPos;
             writer.Write((int)bytesLength);
-            foreach (var contentItem in ContentItems)
+            foreach (var contentItem in ContentItems.Values)
             {
                 foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
@@ -447,16 +438,16 @@ namespace MSELib
                         case ArgumentType.BYTE:
                         case ArgumentType.FUNCTION_BYTE_ID:
                         case ArgumentType.STR_BYTE_ID:
-                            writer.Write((byte)arg.Value);
+                            writer.Write(arg.ByteValue);
                             break;
                         case ArgumentType.SHORT:
                         case ArgumentType.STR_SHORT_ID:
-                            writer.Write((ushort)arg.Value);
+                            writer.Write(arg.UshortValue);
                             break;
                         case ArgumentType.INT:
                         case ArgumentType.FUNCTION_INT_ID:
                         case ArgumentType.STR_INT_ID:
-                            writer.Write((uint)arg.Value);
+                            writer.Write(arg.UintValue);
                             break;
                         default:
                             throw new NotImplementedException();
