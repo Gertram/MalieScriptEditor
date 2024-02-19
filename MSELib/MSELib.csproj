@@ -41,8 +41,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="classes\ArgumentItem.cs" />
-    <Compile Include="classes\ArgumentType.cs" />
+    <Compile Include="classes\IArgument.cs" />
+    <Compile Include="classes\IArgumentFactory.cs" />
     <Compile Include="BinaryReaderHelper.cs" />
     <Compile Include="classes\CommandItem.cs" />
     <Compile Include="classes\CommandType.cs" />

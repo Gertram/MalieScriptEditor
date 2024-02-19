@@ -4,7 +4,7 @@ namespace MSELib.classes
 {
     public class CommandItem
     {
-        public CommandItem(int offset, CommandType type, List<ArgumentItem> args)
+        public CommandItem(int offset, CommandType type, List<IArgument> args)
         {
             Offset = offset;
             Type = type;
@@ -13,6 +13,6 @@ namespace MSELib.classes
 
         public int Offset { get; set; }
         public CommandType Type { get; set; }
-        public List<ArgumentItem> Args { get; set; }
+        public List<IArgument> Args { get; set; }
     }
 }

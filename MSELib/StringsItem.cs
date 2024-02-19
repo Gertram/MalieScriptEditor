@@ -10,7 +10,7 @@ namespace MSELib
 
         public event PropertyChangedEventHandler PropertyChanged;
         public uint Offset { get; set; }
-        public List<ArgumentItem> Arguments { get; } = new List<ArgumentItem>();
+        public List<IArgument> Arguments { get; } = new List<IArgument>();
         public string Text
         {
             get => text;
