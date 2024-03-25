@@ -9,7 +9,7 @@ namespace MSELib
         private string text;
 
         public event PropertyChangedEventHandler PropertyChanged;
-        public uint Offset { get; set; }
+        public int Offset { get; set; }
         public List<ArgumentItem> Arguments { get; } = new List<ArgumentItem>();
         public string Text
         {
@@ -20,7 +20,7 @@ namespace MSELib
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Text)));
             }
         }
-        public StringsItem(uint offset,string line,bool auto_unescape = true)
+        public StringsItem(int offset,string line,bool auto_unescape = true)
         {
             Offset = offset;
             Text = line;

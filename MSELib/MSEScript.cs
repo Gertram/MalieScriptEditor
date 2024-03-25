@@ -18,9 +18,9 @@ namespace MSELib
     {
         public static IReadOnlyList<(CommandType, IReadOnlyList<ArgumentType>)> CommandsDict = new List<(CommandType, IReadOnlyList<ArgumentType>)>
         {
-            (CommandType.JMP, new List<ArgumentType>() {ArgumentType.INT} ),
-            (CommandType.JNZ, new List<ArgumentType>() {ArgumentType.INT} ),
-            (CommandType.JZ, new List<ArgumentType>() {ArgumentType.INT} ),
+            (CommandType.JMP, new List<ArgumentType>() {ArgumentType.COMMAND_PTR} ),
+            (CommandType.JNZ, new List<ArgumentType>() {ArgumentType.COMMAND_PTR } ),
+            (CommandType.JZ, new List<ArgumentType>() {ArgumentType.COMMAND_PTR } ),
             (CommandType.CALL_UINT_ID, new List<ArgumentType>() {ArgumentType.FUNCTION_INT_ID,ArgumentType.BYTE} ),
             (CommandType.CALL_BYTE_ID, new List<ArgumentType>() {ArgumentType.FUNCTION_BYTE_ID,ArgumentType.BYTE} ),
             (CommandType.MASK_VEIP, new List<ArgumentType>() { } ),
@@ -74,11 +74,12 @@ namespace MSELib
         public Dictionary<string, VarItem> Vars { get; set; }
         public Dictionary<string, FunctionItem> Functions { get; set; }
         public Dictionary<string, LabelItem> Labels { get; set; }
-        public Dictionary<string,ContentItem> ContentItems { get; set; }
+        public Dictionary<string, ContentItem> ContentItems { get; set; }
         private Dictionary<uint, StringsItem> ContentStringsOffsets { get; set; } = new Dictionary<uint, StringsItem>();
         public List<CommandItem> Commands { get; set; }
         private uint Magic { get; set; }
         public int VMCodeLength { get; set; }
+        public int ContentsLength { get; set; }
         public List<LineItem> Strings { get; set; }
         public MSEScript(byte[] data)
         {
@@ -112,7 +113,7 @@ namespace MSELib
                 {
                     var flag = reader.ReadUInt32();
                     parameters.Add(flag);
-                    if(flag == 0)
+                    if (flag == 0)
                     {
                         break;
                     }
@@ -124,7 +125,7 @@ namespace MSELib
                     var value = reader.ReadUInt32();
                     parameters.Add(value);
                 }
-                var varItem = new VarItem { Name=name,Parameters=parameters };
+                var varItem = new VarItem { Name = name, Parameters = parameters };
                 vars.Add(name, varItem);
             }
             Vars = vars;
@@ -147,7 +148,7 @@ namespace MSELib
                 function.Name = Encoding.Unicode.GetString(reader.ReadBytes((int)length)).TrimEnd('\0');
                 function.Id = reader.ReadUInt32();
                 function.Reserved0 = reader.ReadUInt32();
-                function.VMCodeOffset = reader.ReadUInt32();
+                function.VMCodeOffset = reader.ReadInt32();
                 functions.Add(function.Name, function);
             }
             Functions = functions;
@@ -167,7 +168,7 @@ namespace MSELib
                 length = length & 0x7FFFFFFF;
                 var label = new LabelItem();
                 label.Name = Encoding.Unicode.GetString(reader.ReadBytes((int)length)).TrimEnd('\0');
-                label.VMCodeOffset = reader.ReadUInt32();
+                label.VMCodeOffset = reader.ReadInt32();
                 labels.Add(label.Name, label);
             }
             Labels = labels;
@@ -191,7 +192,7 @@ namespace MSELib
             var text = Encoding.Unicode.GetString(bytes).TrimEnd('\0');
             if (text == "\a\f1")
             {
-                text = "[NAME]"+ReadString(reader);
+                text = "[NAME]" + ReadString(reader);
             }
             return text;
         }
@@ -205,10 +206,10 @@ namespace MSELib
             while (is_continue)
             {
                 var start = reader.BaseStream.Position;
-                var offset = (uint)(start - contentOffset);
+                var offset = (int)(start - contentOffset);
                 var text = ReadString(reader);
                 var stringItem = new StringsItem(offset, text);
-                ContentStringsOffsets.Add(offset, stringItem);
+                ContentStringsOffsets.Add((uint)offset, stringItem);
                 if (text.StartsWith("■"))
                 {
                     contentItem = new ContentItem
@@ -229,58 +230,58 @@ namespace MSELib
                 }
             };
         }
-        private void AddStringArgument(uint offset,ArgumentItem argument)
+        private void AddStringArgument(uint offset, ArgumentItem argument)
         {
-            if(!ContentStringsOffsets.TryGetValue(offset,out var stringsItem))
+            if (!ContentStringsOffsets.TryGetValue(offset, out var stringsItem))
             {
                 throw new Exception("Doesn't found string for argument");
             }
             stringsItem.Arguments.Add(argument);
         }
-        private ArgumentItem ParseArgument(BinaryReader reader, ArgumentType argumentType)
+        private ArgumentItem ParseArgument(BinaryReader reader, ArgumentType argumentType,List<ArgumentItem> commandPtrs)
         {
-            var argument = new ArgumentItem
-            {
-                Offset = (int)reader.BaseStream.Position,
-                Type = argumentType
-            };
+            var argument = new ArgumentItem((int)reader.BaseStream.Position, argumentType, 0);
             switch (argumentType)
             {
                 case ArgumentType.BYTE:
-                    argument.ByteValue = reader.ReadByte();
+                    argument.Value = reader.ReadByte();
                     break;
                 case ArgumentType.SHORT:
-                    argument.UshortValue = reader.ReadUInt16();
+                    argument.Value = reader.ReadInt16();
                     break;
                 case ArgumentType.INT:
-                    argument.UintValue = reader.ReadUInt32();
+                    argument.Value = reader.ReadInt32();
+                    break;
+                case ArgumentType.COMMAND_PTR:
+                    argument.Value = reader.ReadInt32();
+                    commandPtrs.Add(argument);
                     break;
                 case ArgumentType.STR_BYTE_ID:
                     {
                         var offset = reader.ReadByte();
-                        argument.ByteValue = offset;
+                        argument.Value = offset;
                         AddStringArgument(offset, argument);
                     }
                     break;
                 case ArgumentType.STR_SHORT_ID:
                     {
                         var offset = reader.ReadUInt16();
-                        argument.UshortValue = offset;
+                        argument.Value = offset;
                         AddStringArgument(offset, argument);
                     }
                     break;
                 case ArgumentType.STR_INT_ID:
                     {
                         var offset = reader.ReadUInt32();
-                        argument.UintValue = offset;
+                        argument.Value = (int)offset;
                         AddStringArgument(offset, argument);
                     }
                     break;
                 case ArgumentType.FUNCTION_BYTE_ID:
-                    argument.ByteValue = reader.ReadByte();
+                    argument.Value = reader.ReadByte();
                     break;
                 case ArgumentType.FUNCTION_INT_ID:
-                    argument.UintValue = reader.ReadUInt32();
+                    argument.Value = reader.ReadInt32();
                     break;
                 default:
                     throw new NotImplementedException();
@@ -290,23 +291,59 @@ namespace MSELib
         private void ReadCode(BinaryReader reader)
         {
             VMCodeLength = reader.ReadInt32();
+            var codeOffset = reader.BaseStream.Position;
             var end = reader.BaseStream.Position + VMCodeLength;
 
             var commands = new List<CommandItem>();
+            var commandsTable = new Dictionary<int, CommandItem>();
+            var commandPtrs = new List<ArgumentItem>();
             while (reader.BaseStream.Position != end)
             {
-                var offset = reader.BaseStream.Position;
+                var offset = (int)(reader.BaseStream.Position-codeOffset);
                 var code = reader.ReadByte();
-                var (commandType,argumentsTypes) = CommandsDict[code];
+                var (commandType, argumentsTypes) = CommandsDict[code];
                 var arguments = argumentsTypes.Select(
-                    argumentType => ParseArgument(reader, argumentType)).ToList();
-                var command = new CommandItem((int)offset, commandType, arguments);
+                    argumentType => ParseArgument(reader, argumentType,commandPtrs)).ToList();
+                var command = new CommandItem(offset, commandType, arguments);
+                foreach(var arg in command.Args)
+                {
+                    arg.Command = command;
+                }
+                commandsTable.Add(offset, command);
                 commands.Add(command);
             }
-            Commands = commands;
-            foreach(var str in ContentStringsOffsets)
+            int index = 0;
+            foreach (var arg in commandPtrs)
             {
-                if(str.Value.Arguments.Count == 0 && str.Value.Text != "[EMPTY]")
+                //IDK why just 3 bytes
+                var offset = arg.Value & 0xffffff;// arg.Command.Offset + arg.Value- codeOffset;
+                if (!commandsTable.TryGetValue(offset, out var command))
+                {
+                    throw new Exception("Command ptr incorrect");
+                }
+                arg.CommandPtr = command;
+                index++;
+            }
+            foreach(var function in Functions)
+            {
+                if(!commandsTable.TryGetValue(function.Value.VMCodeOffset,out var command))
+                {
+                    throw new Exception("Function command ptr incorrect");
+                }
+                function.Value.Command = command;
+            }
+            foreach(var label in Labels)
+            {
+                if(!commandsTable.TryGetValue(label.Value.VMCodeOffset,out var command))
+                {
+                    throw new Exception("Label command ptr incorrect");
+                }
+                label.Value.Command = command;
+            }
+            Commands = commands;
+            foreach (var str in ContentStringsOffsets)
+            {
+                if (str.Value.Arguments.Count == 0 && str.Value.Text != "[EMPTY]")
                 {
                     throw new Exception("Some content string doesn't used. May be error in code");
                 }
@@ -341,12 +378,12 @@ namespace MSELib
         private void WriteVars(BinaryWriter writer)
         {
             writer.Write(Vars.Count);
-            foreach(var pair in Vars)
+            foreach (var pair in Vars)
             {
                 var bytes = Encoding.Unicode.GetBytes(pair.Key + '\0');
                 writer.Write((uint)(bytes.Length | 0x80000000));
                 writer.Write(bytes);
-                foreach(var parameter in pair.Value.Parameters)
+                foreach (var parameter in pair.Value.Parameters)
                 {
                     writer.Write(parameter);
                 }
@@ -363,7 +400,8 @@ namespace MSELib
                 writer.Write(bytes);
                 writer.Write(pair.Value.Id);
                 writer.Write(pair.Value.Reserved0);
-                writer.Write(pair.Value.VMCodeOffset);
+                writer.Write(pair.Value.Command.Offset);
+                //writer.Write(pair.Value.VMCodeOffset);
             }
         }
         private void WriteLabels(BinaryWriter writer)
@@ -374,7 +412,8 @@ namespace MSELib
                 var bytes = Encoding.Unicode.GetBytes(pair.Key + '\0');
                 writer.Write((uint)(bytes.Length | 0x80000000));
                 writer.Write(bytes);
-                writer.Write(pair.Value.VMCodeOffset);
+                writer.Write(pair.Value.Command.Offset);
+                //writer.Write(pair.Value.VMCodeOffset);
             }
         }
         private void WriteTitles(BinaryWriter writer)
@@ -383,47 +422,92 @@ namespace MSELib
             WriteFunctions(writer);
             WriteLabels(writer);
         }
-        public void WriteContents(BinaryWriter writer)
+        private int CalcCodeOffsets()
         {
-            var startPos = writer.BaseStream.Position;
-
+            var offset = 0;
+            foreach (var command in Commands)
+            {
+                command.Offset = offset;
+                offset += sizeof(byte);
+                foreach (var arg in command.Args)
+                {
+                    switch (arg.Type)
+                    {
+                        case ArgumentType.BYTE:
+                        case ArgumentType.FUNCTION_BYTE_ID:
+                        case ArgumentType.STR_BYTE_ID:
+                            offset += sizeof(byte);
+                            break;
+                        case ArgumentType.SHORT:
+                        case ArgumentType.STR_SHORT_ID:
+                            offset += sizeof(ushort);
+                            break;
+                        case ArgumentType.INT:
+                        case ArgumentType.FUNCTION_INT_ID:
+                        case ArgumentType.STR_INT_ID:
+                            offset += sizeof(int);
+                            break;
+                        case ArgumentType.COMMAND_PTR:
+                            offset += sizeof(int);
+                            break;
+                        default:
+                            throw new NotImplementedException();
+                    }
+                }
+            }
+            return offset;
+        }
+        private int CalcContentsOffsets()
+        {
+            var offset = 0;
             foreach (var contentItem in ContentItems.Values)
             {
                 foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
                 {
-                    var offset = (uint)(writer.BaseStream.Position - startPos);
                     foreach (var arg in stringItem.Arguments)
                     {
                         if (arg.Type is ArgumentType.STR_BYTE_ID)
                         {
-                            if(offset > 0xFF)
+                            if (offset > 0xFF)
                             {
-                                throw new ArgumentOutOfRangeException();
+                                if (offset > 0xFFFF)
+                                {
+                                    arg.Type = ArgumentType.STR_INT_ID;
+                                    arg.Command.Type = CommandType.PUSH_STR_INT;
+                                }
+                                else
+                                {
+                                    arg.Type = ArgumentType.STR_SHORT_ID;
+                                    arg.Command.Type = CommandType.PUSH_STR_SHORT;
+                                }
                             }
-                            arg.ByteValue = (byte)offset;
+                            arg.Value = offset;
                         }
                         else if (arg.Type is ArgumentType.STR_SHORT_ID)
                         {
                             if (offset > 0xFFFF)
                             {
-                                throw new ArgumentOutOfRangeException();
+                                arg.Type = ArgumentType.STR_INT_ID;
+                                arg.Command.Type = CommandType.PUSH_STR_INT;
                             }
-                            arg.UshortValue = (ushort)offset;
+                            arg.Value = offset;
                         }
                         else if (arg.Type is ArgumentType.STR_INT_ID)
                         {
-                            arg.UintValue = offset;
+                            arg.Value = offset;
                         }
                     }
                     stringItem.Offset = offset;
                     var line = stringItem.Dump().Replace("[NAME]", "\a\f1\0") + "\0";
                     var bytes = Encoding.Unicode.GetBytes(line);
-                    writer.Write(bytes);
+                    offset += bytes.Length;
                 }
             }
-            var bytesLength = writer.BaseStream.Position - startPos;
-            writer.BaseStream.Position = startPos;
-            writer.Write((int)bytesLength);
+            return offset;
+        }
+        public void WriteContents(BinaryWriter writer)
+        {
+            writer.Write(ContentsLength);
             foreach (var contentItem in ContentItems.Values)
             {
                 foreach (var stringItem in contentItem.Texts.Prepend(contentItem.Title))
@@ -437,27 +521,31 @@ namespace MSELib
         public void WriteCode(BinaryWriter writer)
         {
             writer.Write(VMCodeLength);
-            foreach(var command in Commands)
+            foreach (var command in Commands)
             {
                 var code = (byte)command.Type;
                 writer.Write(code);
-                foreach(var arg in command.Args)
+                foreach (var arg in command.Args)
                 {
                     switch (arg.Type)
                     {
                         case ArgumentType.BYTE:
                         case ArgumentType.FUNCTION_BYTE_ID:
                         case ArgumentType.STR_BYTE_ID:
-                            writer.Write(arg.ByteValue);
+                            writer.Write((byte)arg.Value);
                             break;
                         case ArgumentType.SHORT:
                         case ArgumentType.STR_SHORT_ID:
-                            writer.Write(arg.UshortValue);
+                            writer.Write((ushort)arg.Value);
                             break;
                         case ArgumentType.INT:
                         case ArgumentType.FUNCTION_INT_ID:
                         case ArgumentType.STR_INT_ID:
-                            writer.Write(arg.UintValue);
+                            writer.Write(arg.Value);
+                            break;
+                        case ArgumentType.COMMAND_PTR:
+                            arg.Value = (arg.CommandPtr.Offset & 0xffffff) | (arg.Value & 0x0f000000);
+                            writer.Write(arg.Value);
                             break;
                         default:
                             throw new NotImplementedException();
@@ -490,6 +578,8 @@ namespace MSELib
             using (var stream = new MemoryStream())
             using (var writer = new BinaryWriter(stream))
             {
+                ContentsLength = CalcContentsOffsets();
+                VMCodeLength = CalcCodeOffsets();
                 WriteTitles(writer);
                 WriteContents(writer);
                 WriteCode(writer);
