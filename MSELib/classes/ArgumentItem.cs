@@ -2,10 +2,17 @@
 {
     public class ArgumentItem
     {
-        public int Offset { get; set; }
-        public ArgumentType Type;
-        public byte ByteValue { get; set; }
-        public ushort UshortValue { get; set; }
-        public uint UintValue { get; set; }
+        public ArgumentItem(int offset, ArgumentType type, int value)
+        {
+            Offset = offset;
+            Type = type;
+            Value = value;
+        }
+
+        public int Offset { get; }
+        public CommandItem Command { get; set; }
+        public ArgumentType Type { get; set; }
+        public int Value { get; set; }
+        public CommandItem CommandPtr { get; set; }
     }
 }

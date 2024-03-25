@@ -10,5 +10,6 @@
         STR_BYTE_ID = 0x5,
         STR_SHORT_ID = 0x6,
         STR_INT_ID = 0x7,
+        COMMAND_PTR
     }
 }
