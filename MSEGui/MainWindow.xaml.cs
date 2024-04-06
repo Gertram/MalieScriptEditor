@@ -24,6 +24,8 @@ using System.Globalization;
 using MSEGui.Config;
 using ConfigLib;
 using MSEGui.IO;
+using System.Text.RegularExpressions;
+using System.Reflection.Emit;
 
 namespace MSEGui
 {
@@ -578,5 +580,372 @@ namespace MSEGui
             }
         }
 
+        private void InsertLineNumberMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var index = 0;
+                foreach(var strings in Script.Strings)
+                {
+                    index++;
+                    strings.Texts[0].Text = "<"+index.ToString() + ">"+strings.Texts[0].Text;
+                }
+            }
+            catch
+            {
+
+            }
+        }
+
+        private class ChapterString
+        {
+            public ChapterString()
+            {
+
+            }
+            public ChapterString(string name, uint index)
+            {
+                Name = name;
+                Index = index;
+            }
+
+            public string Name { get; set; }
+            public uint Index { get; set; }
+        }
+        //private StringsItem FindLastString(int currentIndex)
+        //{
+        //    for(var i = currentIndex;i != -1; i--)
+        //    {
+        //        var command = Script.Commands[i];
+        //        if(command.Type == CommandType.PUSH_STR_BYTE || command.Type == CommandType.PUSH_STR_SHORT || command.Type == CommandType.PUSH_STR_INT)
+        //        {
+        //            return command.Args[0].Str;
+        //        }
+        //    }
+        //    return null;
+        //}
+        static string ExtractValue(string input, string pattern)
+        {
+            Match match = Regex.Match(input, pattern);
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        private void HandleCommand(CommandItem command)
+        {
+            switch (command.Type)
+            {
+                case CommandType.JMP:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.JNZ:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.JZ:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.CALL_UINT_ID:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.CALL_BYTE_ID:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.POP_R32:
+                    vmStack.Pop();
+                    break;
+                case CommandType.PUSH_INT32:
+                    pParma = (uint)command.Args[0].Value;
+                    vmStack.Push(pParma | 0x80000000);
+                    break;
+                case CommandType.PUSH_UINT32:
+                    pParma = (uint)command.Args[0].Value;
+                    vmStack.Push(pParma | 0x80000000);
+                    break;
+                case CommandType.PUSH_STR_BYTE:
+                    {
+                        pParma = (uint)command.Args[0].Value;
+                        pLastString = command.Args[0].Str.Text;
+                        var pos = pLastString.IndexOf('\n');
+                        if (pos != -1)
+                        {
+                            pLastString = pLastString.Substring(0, pos);
+                        }
+                        vmStack.Push((uint)command.Args[0].Str.Offset);
+                        break;
+                    }
+                case CommandType.PUSH_STR_SHORT:
+                    {
+                        pParma = (uint)command.Args[0].Value;
+                        pLastString = command.Args[0].Str.Text;
+                        var pos = pLastString.IndexOf('\n');
+                        if (pos != -1)
+                        {
+                            pLastString = pLastString.Substring(0, pos);
+                        }
+                        vmStack.Push((uint)command.Args[0].Str.Offset);
+                        break;
+                    }
+                case CommandType.NONE:
+                    break;
+                case CommandType.PUSH_STR_INT:
+                    {
+                        pParma = (uint)command.Args[0].Value;
+                        pLastString = command.Args[0].Str.Text;
+                        var pos = pLastString.IndexOf('\n');
+                        if (pos != -1)
+                        {
+                            pLastString = pLastString.Substring(0, pos);
+                        }
+                        vmStack.Push((uint)command.Args[0].Str.Offset);
+                        break;
+                    }
+                case CommandType.POP:
+                    vmStack.Pop();
+                    break;
+                case CommandType.PUSH_0:    
+                    vmStack.Push(0|0x80000000);
+                    break;
+                case CommandType.UNKNOWN_1:
+                    break;
+                case CommandType.PUSH_0x:
+                    pParma = (uint)command.Args[0].Value;
+                    vmStack.Push(pParma|0x80000000);
+                    break;
+                case CommandType.ADD:
+                    vmStack.Pop();
+                    break;
+                case CommandType.SUB:
+                    vmStack.Pop();
+                    break;
+                case CommandType.MUL:
+                    vmStack.Pop();
+                    break;
+                case CommandType.DIV:
+                    vmStack.Pop();
+                    break;
+                case CommandType.MOD:
+                    vmStack.Pop();
+                    break;
+                case CommandType.AND:
+                    vmStack.Pop();
+                    break;
+                case CommandType.OR:
+                    vmStack.Pop();
+                    break;
+                case CommandType.XOR:
+                    vmStack.Pop();
+                    break;
+                case CommandType.BOOL2:
+                    vmStack.Pop();
+                    break;
+                case CommandType.BOOL3:
+                    vmStack.Pop();
+                    break;
+                case CommandType.ISL:
+                    vmStack.Pop();
+                    break;
+                case CommandType.ISLE:
+                    vmStack.Pop();
+                    break;
+                case CommandType.ISNLE:
+                    vmStack.Pop();
+                    break;
+                case CommandType.ISNL:
+                    vmStack.Pop();
+                    break;
+                case CommandType.ISEQ:
+                    vmStack.Pop();
+                    break;
+                case CommandType.ISNEQ:
+                    vmStack.Pop();
+                    break;
+                case CommandType.SHL:
+                    //vmStack.Pop();
+                    vmStack.Peek();
+                    break;
+                case CommandType.SAR:
+                    vmStack.Pop();
+                    break;
+                case CommandType.CALL_UINT_NO_PARAM:
+                    pParma = (uint)command.Args[0].Value;
+                    vmStack.Push(pParma | 0x80000000);
+                    break;
+                case CommandType.INITSTACK:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.UNKNOWN_2:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                case CommandType.RET:
+                    pParma = (uint)command.Args[0].Value;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private int ParseJmpTable(List<uint> jmpTable, int currentIndex)
+        {
+            var MALIE_END = Script.Functions["MALIE_END"].Id;
+            for (var command = Script.Commands[currentIndex]; command.Type != CommandType.RET; command = Script.Commands[currentIndex])
+            {
+                HandleCommand(command);
+                if (command.Type == CommandType.CALL_UINT_NO_PARAM)
+                {
+                    if(pParma == MALIE_END)
+                    {
+                        break;
+                    }
+                }
+                else if(command.Type == CommandType.JMP)
+                {
+                    jmpTable.Add((uint)pParma);
+                }
+                currentIndex++;
+            }
+            return currentIndex;
+        }
+        Stack<uint> vmStack;
+        string pLastString;
+        uint pParma;
+
+        private List<ChapterString> ParseScenario(List<string> chapterName,List<uint> chapterIndex)
+        {
+            var v = new List<ChapterString>();
+            var offset = Script.Functions["maliescenario"].VMCodeOffset;
+            var currentIndex = Script.Commands.FindIndex(x => x.Offset == offset);
+
+            var _ms_message = Script.Functions["_ms_message"].Id;
+            var MALIE_NAME = Script.Functions["MALIE_NAME"].Id;
+            var MALIE_LABLE = Script.Functions["MALIE_LABLE"].Id;
+            var tag = Script.Functions["tag"].Id;
+            var FrameLayer_SendMessage = Script.Functions["FrameLayer_SendMessage"].Id;
+            var System_GetResult = Script.Functions["System_GetResult"].Id;
+
+            ChapterString moji = new ChapterString();
+            var jmpTable = new List<uint>();
+            var selectTable = new List<uint>();
+            var jmpIteratorIndex = -1;
+            vmStack = new Stack<uint>(); ;
+
+            for (var command = Script.Commands[currentIndex]; command.Type != CommandType.RET; command = Script.Commands[currentIndex])
+            {
+                HandleCommand(command);
+                if (jmpTable.Count !=0)
+                {
+                    if(jmpIteratorIndex != jmpTable.Count && offset > jmpTable[jmpIteratorIndex])
+                    {
+                        jmpIteratorIndex++;
+                        chapterIndex.Add((uint)v.Count);
+                    }
+                }
+                if(command.Type == CommandType.CALL_UINT_NO_PARAM||command.Type == CommandType.CALL_BYTE_ID || command.Type == CommandType.CALL_UINT_ID)//vCall
+                {
+                    if (pParma == tag)
+                    {
+                        var pos = pLastString.IndexOf("<chapter");
+                        if (pos != -1)
+                        {
+                            var Title = ExtractValue(pLastString, @"<chapter name='(.*?)'>");
+                            
+                            chapterName.Add(Title);
+                            
+                            chapterIndex.Add((uint)v.Count);
+                        }
+                    }
+                    else if (pParma == _ms_message)
+                    {
+                        vmStack.Pop();
+                        moji.Index = vmStack.Peek() & ~0x80000000;
+                        while (vmStack.Count != 0) vmStack.Pop();
+                        vmStack.Push(0);
+                        v.Add(moji);
+                        moji = new ChapterString();
+                        moji.Name = "";
+                        selectTable.Clear();
+                    }
+                    else if (pParma == MALIE_NAME)
+                    {
+                        moji.Name = pLastString;
+                    }
+                    else if (pParma == MALIE_LABLE && v.Count == 0)
+                    {
+                        if (pLastString == "_index")
+                        {
+                            currentIndex = ParseJmpTable(jmpTable,currentIndex);
+                            jmpIteratorIndex = 0;
+                            continue;
+                        }
+                    }
+                    else if(pParma == System_GetResult)
+                    {
+                        foreach(var x in selectTable)
+                        {
+                            Console.WriteLine("Select: " + x.ToString());
+                        }
+                    }
+                    else if(pParma == FrameLayer_SendMessage && vmStack.Count > 4)
+                    {
+                        vmStack.Pop(); vmStack.Pop(); vmStack.Pop(); vmStack.Pop();
+                        var loc = vmStack.Peek();
+                        if (loc > 0)
+                        {
+                            selectTable.Add(loc);
+                        }
+                    }
+                }
+                currentIndex++;
+            }
+
+
+            return v;
+        }
+        private void ExportScenesCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            try
+            {
+                var chapterNames = new List<string>();
+                var chapterIndex = new List<uint>();
+                var moji = ParseScenario(chapterNames, chapterIndex);
+                var chapterRegion = chapterIndex.Skip(1).Append((uint)moji.Count).ToList();
+
+                if (!Directory.Exists("output"))
+                {
+                    Directory.CreateDirectory("output");
+                }
+
+                for(int i = 0;i < chapterIndex.Count;i++)
+                {
+                    var index = chapterIndex[i];
+                    string chapterName = chapterNames[i];
+                    var endIndex = (int)chapterRegion[i];
+                    var filename = $"output/{i+1}.{chapterName}.{index}-{endIndex} .txt";
+                    using (var writer = new StreamWriter(filename,false, Encoding.UTF8))
+                    {
+                        for (var j = (int)index; j < endIndex; j++)
+                        {
+                            var name = moji[j].Name;
+                            var text = Script.Strings[(int)moji[j].Index];
+                            if (string.IsNullOrEmpty(name))
+                            {
+                                writer.WriteLine(text);
+                            }
+                            else {
+                                writer.WriteLine($"{name}: {text}");
+                            }
+                            writer.WriteLine();
+                        }
+                    }
+                }
+            }catch(Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
     }
 }

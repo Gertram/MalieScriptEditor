@@ -16,6 +16,7 @@ namespace MSEGui
         public static RoutedCommand ExportOthers { get; set; } = new RoutedCommand("ExportOthers", typeof(MainWindow));
         public static RoutedCommand ImportStrings { get; set; } = new RoutedCommand("ImportStrings", typeof(MainWindow));
         public static RoutedCommand ExportStrings { get; set; } = new RoutedCommand("ExportStrings", typeof(MainWindow));
+        public static RoutedCommand ExportScenes { get; set; } = new RoutedCommand("ExportScenes", typeof(MainWindow));
         public static RoutedCommand Find { get; set; } = new RoutedCommand("Find", typeof(MainWindow));
         public static RoutedCommand SelectFindable { get; set; } = new RoutedCommand("SelectFindable", typeof(MainWindow));
         public static RoutedCommand InsertTrash { get; set; } = new RoutedCommand("InsertTrash", typeof(MainWindow));

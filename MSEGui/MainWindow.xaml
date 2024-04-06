@@ -24,6 +24,7 @@
         <CommandBinding Command="{x:Static local:WindowCommands.ImportOthers}" Executed="ImportOthersCommandBinding_Executed"/>
         <CommandBinding Command="{x:Static local:WindowCommands.ExportStrings}" Executed="ExportStringsCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
         <CommandBinding Command="{x:Static local:WindowCommands.ExportOthers}" Executed="ExportOthersCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
+        <CommandBinding Command="{x:Static local:WindowCommands.ExportScenes}" Executed="ExportScenesCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
         <CommandBinding Command="{x:Static local:WindowCommands.Find}" Executed="FindCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
     </Window.CommandBindings>
     <Window.InputBindings>
@@ -48,6 +49,7 @@
                 <MenuItem Header="{DynamicResource m_Export}" x:Name="FileExportMenuItem">
                     <MenuItem Header="{DynamicResource m_Others}" x:Name="ExportOthersMenuItem" Command="{x:Static local:WindowCommands.ExportOthers}"/>
                     <MenuItem Header="{DynamicResource m_Strings}" x:Name="ExportStringsMenuItem" Command="{x:Static local:WindowCommands.ExportStrings}"/>
+                    <MenuItem Header="{DynamicResource m_Scenes}" x:Name="ExportScenesMenuItem" Command="{x:Static local:WindowCommands.ExportScenes}"/>
                 </MenuItem>
                 <MenuItem Header="{DynamicResource m_Import}">
                     <MenuItem Header="{DynamicResource m_Others}" x:Name="ImportOthersMenuItem" Command="{x:Static local:WindowCommands.ImportOthers}"/>
@@ -61,6 +63,7 @@
             <MenuItem Header="{DynamicResource m_Settings}">
                 <MenuItem Header="{DynamicResource m_Language}" x:Name="menuLanguage"/>
             </MenuItem>
+            <MenuItem Header="InsertLineNumber" x:Name="InsertLineNumberMenuItem" Click="InsertLineNumberMenuItem_Click"/>
         </Menu>
         <TabControl Grid.Row="1" x:Name="mTabControl" SelectionChanged="mTabControl_SelectionChanged">
             <TabItem Header="{DynamicResource m_Strings}">

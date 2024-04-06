@@ -12,6 +12,7 @@
         public int Offset { get; }
         public CommandItem Command { get; set; }
         public ArgumentType Type { get; set; }
+        public StringsItem Str { get; set; }
         public int Value { get; set; }
         public CommandItem CommandPtr { get; set; }
     }

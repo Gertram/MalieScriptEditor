@@ -236,6 +236,7 @@ namespace MSELib
             {
                 throw new Exception("Doesn't found string for argument");
             }
+            argument.Str = stringsItem;
             stringsItem.Arguments.Add(argument);
         }
         private ArgumentItem ParseArgument(BinaryReader reader, ArgumentType argumentType,List<ArgumentItem> commandPtrs)
