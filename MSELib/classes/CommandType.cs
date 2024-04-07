@@ -57,7 +57,7 @@ namespace MSELib.classes
         FPCOPY = 0x2F,
         FPGET = 0x30,
         INITSTACK = 0x31,
-        UNKNOWN_2 = 0x32,
+        Unknown2 = 0x32,
         RET = 0x33,
     }
 }

@@ -13,5 +13,6 @@ namespace MSEGui
         {
             return window.TryFindResource(resourceName) as string;
         }
+
     }
 }

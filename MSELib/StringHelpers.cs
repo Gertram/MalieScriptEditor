@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace MSELib
@@ -87,6 +88,22 @@ namespace MSELib
             }
             //text = text.Replace("\\r", "\r").Replace("\\n", "\n");
             return text;
+        }
+        private static int GetCharsCount(string text, int min, int max)
+        {
+            return text.Where(e => e >= min && e <= max).Count();
+        }
+
+        public static bool ContainsJapanese(this string text, int limit = 5)
+        {
+            if (text == null)
+            {
+                return false;
+            }
+            var hiragana = GetCharsCount(text, 0x3040, 0x309F);
+            var katakana = GetCharsCount(text, 0x30A0, 0x30FF);
+            var kanji = GetCharsCount(text, 0x4E00, 0x9FBF);
+            return hiragana + katakana + kanji > limit;
         }
     }
 }

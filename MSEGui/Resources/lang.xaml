@@ -19,8 +19,8 @@
     <v:String x:Key="m_Export">Export</v:String>
     <v:String x:Key="m_Others">Others</v:String>
     <v:String x:Key="m_Strings">Strings</v:String>
-    <v:String x:Key="m_Scenes">Scenes</v:String>
-    <v:String x:Key="m_Scene">Scene</v:String>
+    <v:String x:Key="m_Chapters">Chapters</v:String>
+    <v:String x:Key="m_Chapter">Chapter</v:String>
     <v:String x:Key="m_Import">Import</v:String>
     <v:String x:Key="m_SaveAs">Save as</v:String>
     <v:String x:Key="m_Close">Close</v:String>

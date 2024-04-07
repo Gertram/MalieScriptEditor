@@ -7,54 +7,37 @@ using System.Threading.Tasks;
 using Microsoft.Win32;
 using System.Windows;
 using MSELib;
+using System.IO;
+using FolderBrowserEx;
 using Newtonsoft.Json;
+using MSELib.classes;
 
 namespace MSEGui.IO
 {
-    internal static class IOUtility
+    public static class IOUtility
     {
-        public static void ExportStrings(MSEScript script, string fileName)
+        public delegate void ImportOthersFunc(IReadOnlyList<StringItem> strings, StreamReader reader);
+        public delegate void ExportOthersFunc(IEnumerable<StringItem> strings, StreamWriter reader);
+        public delegate void ImportStringsFunc(IReadOnlyList<LineItem> strings, StreamReader reader);
+        public delegate void ExportStringsFunc(IEnumerable<LineItem> strings, StreamWriter reader);
+        public delegate void ImportChapterFunc(IReadOnlyList<ChapterString> chapters, StreamReader reader);
+        public delegate void ExportChapterFunc(IEnumerable<ChapterString> chapters, StreamWriter reader);
+        public static void ImportOthers(IReadOnlyList<StringItem> strings, string filename, ImportOthersFunc func)
         {
-            try
+            using (var reader = new StreamReader(filename, Encoding.UTF8))
             {
-                var sfd = new SaveFileDialog
-                {
-                    DefaultExt = "json",
-                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
-                    InitialDirectory = Path.GetDirectoryName(fileName),
-                    FileName = Path.GetFileNameWithoutExtension(fileName) + "_strings"
-                };
-                if (!(sfd.ShowDialog() is true))
-                {
-                    return;
-                }
-                switch (Path.GetExtension(sfd.FileName))
-                {
-                    case ".json":
-                        using (var writer = new StreamWriter(sfd.FileName, false, Encoding.UTF8))
-                        {
-                            var jsonWriter = new JsonTextWriter(writer);
-                            var jsonSettings = new JsonSerializerSettings();
-                            jsonSettings.Formatting = Formatting.Indented;
-                            JsonSerializer.CreateDefault(jsonSettings)
-                                .Serialize(jsonWriter, script.Strings.Select(x => x.Texts.Select(y => y.Text)));
-                        }
-                        break;
-                    case ".txt":
-                        File.WriteAllText(sfd.FileName, string.Join("\n\n", script.Strings
-                            .Select(x => string.Join("\n", x.Texts.Select(y => y.Text)))), Encoding.UTF8);
-
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (Exception exp)
-            {
-                MessageBox.Show(exp.ToString());
+                func(strings, reader);
             }
         }
-        public static void ImportStrings(MSEScript script)
+        public static void ImportOthers(IReadOnlyList<StringItem> strings, byte[] raw, ImportOthersFunc func)
+        {
+            using (var stream = new MemoryStream(raw))
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
+            {
+                func(strings, reader);
+            }
+        }
+        public static void ImportOthers(IReadOnlyList<StringItem> strings)
         {
             try
             {
@@ -70,148 +53,10 @@ namespace MSEGui.IO
                 switch (Path.GetExtension(ofd.FileName))
                 {
                     case ".json":
-                        {
-                            using (var reader = new StreamReader(ofd.FileName))
-                            {
-                                var jsonReader = new JsonTextReader(reader);
-                                var tokens = JsonSerializer.CreateDefault().Deserialize<List<List<string>>>(jsonReader);
-                                foreach (var (strings, index) in tokens.Select((x, index) => (x, index)))
-                                {
-                                    var item = script.Strings[index];
-                                    foreach (var (stringItem, ind) in item.Texts.Select((x, ind) => (x, ind)))
-                                    {
-                                        stringItem.Text = strings[ind];
-                                    }
-                                }
-                            }
-                        }
+                        ImportOthers(strings, ofd.FileName, JsonUtil.ImportOthers);
                         break;
                     case ".txt":
-                        {
-                            //var text = File.ReadAllText(ofd.FileName);
-                            //var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            //foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "<br/>" }, StringSplitOptions.RemoveEmptyEntries), index)))
-                            //{
-                            //    var item = script.Strings[index];
-                            //    foreach (var (stringItem, ind) in item.Texts.Where(x => !x.IsDelimeter && x.Type == StringType.Text).Select((x, ind) => (x, ind)))
-                            //    {
-                            //        stringItem.Text = strings[ind].Replace("\r\n", "\n");
-                            //    }
-                            //}
-                            TXTUtil.ImportStrings(script, ofd.FileName);
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (SoManyStringsException ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            catch (SoManyLinesException ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.ToString());
-            }
-        }
-        public static void ExportOthers(MSEScript script, string fileName,bool onlyJapanese)
-        {
-            try
-            {
-                var sfd = new SaveFileDialog
-                {
-                    DefaultExt = "json",
-                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
-                    InitialDirectory = Path.GetDirectoryName(fileName),
-                    FileName = Path.GetFileNameWithoutExtension(fileName) + "_others"
-                };
-                if (!(sfd.ShowDialog() is true))
-                {
-                    return;
-                }
-                var contents = onlyJapanese ? script.ContentItems.Values.Where(x => x.IsJapanese) : script.ContentItems.Values;
-                switch (Path.GetExtension(sfd.FileName))
-                {
-                    case ".json":
-                        using (var writer = new StreamWriter(sfd.FileName, false, Encoding.UTF8))
-                        {
-                            var jsonWriter = new JsonTextWriter(writer);
-                            var jsonSettings = new JsonSerializerSettings();
-                            jsonSettings.Formatting = Formatting.Indented;
-                            JsonSerializer.CreateDefault(jsonSettings)
-                                .Serialize(jsonWriter, contents.ToDictionary(x => x.Title, x => x.Texts.Select(y => y.Text)));
-                        }
-                        break;
-                    case ".txt":
-                        File.WriteAllText(sfd.FileName, string.Join("\n\n", contents.Select(x => string.Join("\n", x.Texts.Prepend(x.Title).Select(y => y.Text)))), Encoding.UTF8);
-                        break;
-                    default:
-                        break;
-                }
-            }
-            catch (Exception exp)
-            {
-                MessageBox.Show(exp.ToString());
-            }
-        }
-        public static void ImportOthers(MSEScript script)
-        {
-            try
-            {
-                var ofd = new OpenFileDialog
-                {
-                    DefaultExt = "json",
-                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt"
-                };
-                if (!(ofd.ShowDialog() is true))
-                {
-                    return;
-                }
-                switch (Path.GetExtension(ofd.FileName))
-                {
-                    case ".json":
-                        {
-                            using (var reader = new StreamReader(ofd.FileName))
-                            {
-                                var jsonReader = new JsonTextReader(reader);
-                                var tokens = JsonSerializer.CreateDefault().Deserialize<Dictionary<string, List<string>>>(jsonReader);
-                                foreach (var (pair, index) in tokens.Select((x, index) => (x, index)))
-                                {
-                                    var key = pair.Key;
-                                    var items = pair.Value;
-                                    if(!script.ContentItems.TryGetValue(key,out var content))
-                                    {
-                                        throw new ContentItemNotFound(key, 0);
-                                    }
-                                    foreach (var (stringItem, ind) in items.Select((x, ind) => (x, ind)))
-                                    {
-                                        content.Texts[ind].Text = stringItem;
-                                    }
-                                }
-
-                            }
-                        }
-                        break;
-                    case ".txt":
-                        {
-                            //var text = File.ReadAllText(ofd.FileName);
-                            //var tokens = text.Split(new string[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            //foreach (var (strings, index) in tokens.Select((x, index) => (x.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Select(y => y.Unescape()), index)))
-                            //{
-                            //    var key = strings.First();
-                            //    var content = script.ContentItems.First(x => x.Title.Text == key);
-                            //    foreach (var (stringItem, ind) in strings.Skip(1).Select((x, ind) => (x, ind)))
-                            //    {
-                            //        content.Texts[ind].Text = stringItem;
-                            //    }
-
-                            //}
-                            TXTUtil.ImportOthers(script, ofd.FileName);
-                        }
+                        ImportOthers(strings, ofd.FileName, TextUtil.ImportOthers);
                         break;
                     default:
                         break;
@@ -232,6 +77,309 @@ namespace MSEGui.IO
             catch (Exception exp)
             {
                 MessageBox.Show(exp.ToString());
+            }
+        }
+        public static void ExportOthers(IEnumerable<StringItem> strings,string filename, ExportOthersFunc func)
+        {
+            using (var writer = new StreamWriter(filename,false, Encoding.UTF8))
+            {
+                func(strings, writer);
+            }
+        }
+        public static byte[] ExportOthers(IEnumerable<StringItem> strings, ExportOthersFunc func)
+        {
+            using (var stream = new MemoryStream())
+            using (var writer = new StreamWriter(stream, Encoding.UTF8))
+            {
+                func(strings, writer);
+                return stream.ToArray();
+            }
+        }
+        public static void ExportOthers(IEnumerable<StringItem> strings, string fileName)
+        {
+            try
+            {
+                var sfd = new SaveFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
+                    InitialDirectory = Path.GetDirectoryName(fileName),
+                    FileName = Path.GetFileNameWithoutExtension(fileName) + "_others"
+                };
+                if (!(sfd.ShowDialog() is true))
+                {
+                    return;
+                }
+                switch (Path.GetExtension(sfd.FileName))
+                {
+                    case ".json":
+                        ExportOthers(strings, sfd.FileName, JsonUtil.ExportOthers);
+                        break;
+                    case ".txt":
+                        ExportOthers(strings, sfd.FileName, TextUtil.ExportOthers);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception exp)
+            {
+                MessageBox.Show(exp.ToString());
+            }
+        }
+        public static void ImportStrings(IReadOnlyList<LineItem> strings, string filename,ImportStringsFunc func)
+        {
+            using (var reader = new StreamReader(filename, Encoding.UTF8))
+            {
+                func(strings, reader);
+            }
+        }
+        public static void ImportStrings(IReadOnlyList<LineItem> strings, byte[] raw, ImportStringsFunc func)
+        {
+            using (var stream = new MemoryStream(raw))
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
+            {
+                func(strings, reader);
+            }
+        }
+        public static void ImportStrings(IReadOnlyList<LineItem> strings)
+        {
+            try
+            {
+                var ofd = new OpenFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt"
+                };
+                if (!(ofd.ShowDialog() is true))
+                {
+                    return;
+                }
+                switch (Path.GetExtension(ofd.FileName))
+                {
+                    case ".json":
+                        ImportStrings(strings, ofd.FileName, JsonUtil.ImportStrings);
+                        break;
+                    case ".txt":
+                        {
+                            ImportStrings(strings, ofd.FileName, TextUtil.ImportStrings);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (SoManyStringsException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (SoManyLinesException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+        public static byte[] ExportStrings(IEnumerable<LineItem> strings,ExportStringsFunc func)
+        {
+            using (var stream = new MemoryStream())
+            using (var writer = new StreamWriter(stream, Encoding.UTF8))
+            {
+                func(strings, writer);
+                return stream.ToArray();
+            }
+        }
+        public static void ExportStrings(IEnumerable<LineItem> strings, string filename,ExportStringsFunc func)
+        {
+            using (var writer = new StreamWriter(filename, false, Encoding.UTF8))
+            {
+                func(strings, writer);
+            }
+        }
+        public static void ExportStrings(IEnumerable<LineItem> strings, string fileName)
+        {
+            try
+            {
+                var sfd = new SaveFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
+                    InitialDirectory = Path.GetDirectoryName(fileName),
+                    FileName = Path.GetFileNameWithoutExtension(fileName) + "_strings"
+                };
+                if (!(sfd.ShowDialog() is true))
+                {
+                    return;
+                }
+                switch (Path.GetExtension(sfd.FileName))
+                {
+                    case ".json":
+                        ExportStrings(strings,sfd.FileName,JsonUtil.ExportStrings);
+                        break;
+                    case ".txt":
+                        ExportStrings(strings, sfd.FileName,TextUtil.ExportStrings);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception exp)
+            {
+                MessageBox.Show(exp.ToString());
+            }
+        }
+        public static void ExportChapter(IEnumerable<ChapterString> chapter, string filename,ExportChapterFunc func)
+        {
+            using (var writer = new StreamWriter(filename, false, Encoding.UTF8))
+            {
+                func(chapter, writer);
+            }
+        }
+        public static byte[] ExportChapter(IEnumerable<ChapterString> strings, ExportChapterFunc func)
+        {
+            using (var stream = new MemoryStream())
+            using (var writer = new StreamWriter(stream, Encoding.UTF8))
+            {
+                func(strings, writer);
+                return stream.ToArray();
+            }
+        }
+        public static void ExportChapter(Chapter chapter)
+        {
+            try
+            {
+                var sfd = new SaveFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt",
+                    FileName = $"{chapter.Title}.{chapter.Start}-{chapter.End}.txt"
+                };
+                if (!(sfd.ShowDialog() is true))
+                {
+                    return;
+                }
+                switch (Path.GetExtension(sfd.FileName))
+                {
+                    case ".json":
+                        ExportChapter(chapter.Strings,sfd.FileName, JsonUtil.ExportChapter);
+                        break;
+                    case ".txt":
+                        ExportChapter(chapter.Strings, sfd.FileName, TextUtil.ExportChapter);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception exp)
+            {
+                MessageBox.Show(exp.ToString());
+            }
+        }
+        public static void ImportChapter(IReadOnlyList<ChapterString> strings, string filename,ImportChapterFunc func)
+        {
+            using (var reader = new StreamReader(filename, Encoding.UTF8))
+            {
+                func(strings, reader);
+            }
+        }
+        public static void ImportChapter(IReadOnlyList<ChapterString> strings, byte[] raw, ImportChapterFunc func)
+        {
+            using (var stream = new MemoryStream(raw))
+            using (var reader = new StreamReader(stream, Encoding.UTF8))
+            {
+                func(strings, reader);
+            }
+        }
+        public static void ImportChapter(Chapter chapter)
+        {
+            try
+            {
+                var ofd = new OpenFileDialog
+                {
+                    DefaultExt = "json",
+                    Filter = "Supported files|*.json;*.txt|JSON|*.json|All text|*.txt"
+                };
+                if (!(ofd.ShowDialog() is true))
+                {
+                    return;
+                }
+                switch (Path.GetExtension(ofd.FileName))
+                {
+                    case ".json":
+                        ImportChapter(chapter.Strings, ofd.FileName, JsonUtil.ImportChapter);
+                        break;
+                    case ".txt":
+                        ImportChapter(chapter.Strings, ofd.FileName, TextUtil.ImportChapter);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (SoManyStringsException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (SoManyLinesException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+        public static void ExportChapters(IEnumerable<Chapter> chapters)
+        {
+            try
+            {
+                var fbd = new FolderBrowserDialog();
+                if (fbd.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                {
+                    return;
+                }
+                foreach(var (index,chapter) in chapters.Select((x,index)=>(index,x)))
+                {
+                    var filepath = Path.Combine(fbd.SelectedFolder, $"{index}.{chapter.Title}.{chapter.Start}-{chapter.End}.txt");
+                    ExportChapter(chapter.Strings, filepath, TextUtil.ExportChapter);
+                }
+            }
+            catch (Exception exp)
+            {
+                MessageBox.Show(exp.ToString());
+            }
+        }
+        public static void ImportChapters(IEnumerable<Chapter> chapters)
+        {
+            try
+            {
+                var fbd = new FolderBrowserDialog();
+                if (fbd.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                {
+                    return;
+                }
+                foreach(var filepath in Directory.GetFiles(fbd.SelectedFolder))
+                {
+                    var chapter = chapters.FirstOrDefault(x => filepath.Contains(x.Title));
+                    if(chapter == null)
+                    {
+                        continue;
+                    }
+                    ImportChapter(chapter.Strings, filepath, TextUtil.ImportChapter);
+                }
+            }
+            catch (SoManyStringsException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (SoManyLinesException ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
             }
         }
     }

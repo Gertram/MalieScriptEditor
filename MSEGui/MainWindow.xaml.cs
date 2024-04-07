@@ -31,6 +31,7 @@ namespace MSEGui
 {
     internal enum SelectedTab
     {
+        Chapters,
         Strings,
         Others
     }
@@ -40,24 +41,15 @@ namespace MSEGui
     public partial class MainWindow : MetroWindow, INotifyPropertyChanged, IFindable
     {
         private FindWindow findWindow;
-        private List<StringsListItem> strings;
-        private List<ContentsListItem> contents;
+        private List<StringListItem> strings;
+        private List<StringItem> contents;
+        private List<Chapter> chapters;
+        private Chapter selectedChapter;
         private SelectedTab SelectedTab { get; set; } = SelectedTab.Strings;
         private bool IsChanged { get; set; } = false;
 
         private MSEScript script;
         private string fileName;
-        private bool onlyJapanese;
-        public bool OnlyJapanese
-        {
-            get => onlyJapanese;
-            set
-            {
-                onlyJapanese = value;
-                Config.OnlyJapanese = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OnlyJapanese)));
-            }
-        }
         public MSEScript Script
         {
             get => script;
@@ -87,6 +79,16 @@ namespace MSEGui
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedIndex)));
             }
         }
+        private int selectedChapterIndex;
+        public int SelectedChapterIndex
+        {
+            get => selectedChapterIndex;
+            set
+            {
+                selectedChapterIndex = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedChapterIndex)));
+            }
+        }
         private UserConfig Config { get; set; }
 
         public MainWindow()
@@ -96,7 +98,7 @@ namespace MSEGui
             LoadConfig();
             PropertyChanged += MainWindow_PropertyChanged;
         }
-        public List<StringsListItem> Strings
+        public List<StringListItem> Strings
         {
             get => strings; 
             private set
@@ -105,47 +107,70 @@ namespace MSEGui
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Strings)));
             }
         }
-        public List<ContentsListItem> Contents
+        public List<StringItem> Others
         {
-            get => contents; 
+            get => contents;
             private set
             {
                 contents = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Contents)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Others)));
+            }
+        }
+        public List<Chapter> Chapters
+        {
+            get => chapters;
+            private set
+            {
+                chapters = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Chapters)));
+            }
+        }
+        public Chapter SelectedChapter
+        {
+            get => selectedChapter;
+            private set
+            {
+                selectedChapter = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedChapter)));
             }
         }
         private void LoadStrings()
         {
-            var strings = new List<StringsListItem>();
+            var strings = new List<StringListItem>();
 
             foreach (var (lineItem, index) in Script.Strings.Select((x, index) => (x, index)))
             {
                 foreach (var item in lineItem.Texts)
                 {
-                    strings.Add(new StringsListItem(index, item));
+                    strings.Add(new StringListItem(index, item));
                 }
             }
             Strings = strings;
         }
         private void LoadOthers()
         {
-                var contents = new List<ContentsListItem>();
+            if(Script == null)
+            {
+                Others = null;
+                return;
+            }
+            var contents = new List<StringItem>();
+            var filterIndex = FilterComboBox.SelectedIndex;
+            if(filterIndex <= 0)
+            {
+                Others = Script.DataStrings;
+                return;
+            }
 
-                IEnumerable<ContentItem> contentItems = Script.ContentItems.Values;
+            if (filterIndex == 1)
+            {
+                Others = Script.DataStrings.Where(x => x.Text.ContainsJapanese(0)).ToList();
+                return;
+            }
 
-                if (OnlyJapanese)
-                {
-                    contentItems = contentItems.Where(x => x.IsJapanese);
-                }
+            var tag = (StringTag)(filterIndex-1);
 
-                foreach (var (contentItem, index) in contentItems.Select((x, index) => (x, index)))
-                {
-                    foreach (var item in contentItem.Texts)
-                    {
-                        contents.Add(new ContentsListItem(index, contentItem.Title, item));
-                    }
-                }
-            Contents = contents;
+            Others = Script.DataStrings.Where(x => x.Tag == tag).ToList();
         }
         private void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -156,17 +181,12 @@ namespace MSEGui
                     if(Script == null)
                     {
                         Strings = null;
-                        Contents = null;
+                        Others = null;
                         return;
                     }
                     LoadStrings();
                     LoadOthers();
-                }
-                else if (e.PropertyName == nameof(OnlyJapanese))
-                {
-                    OnlyJapaneseCheckBox.IsEnabled = false;
-                    LoadOthers();
-                    OnlyJapaneseCheckBox.IsEnabled = true;
+                    Chapters = Script.Chapters;
                 }
             }
             catch (Exception ex)
@@ -242,7 +262,6 @@ namespace MSEGui
                 {
                     Language = System.Windows.Markup.XmlLanguage.GetLanguage(Config.Language);
                 }
-                OnlyJapanese = Config.OnlyJapanese;
                 Config.PropertyChanged += Config_PropertyChanged;
                 return true;
             }
@@ -398,23 +417,23 @@ namespace MSEGui
 
         private void ImportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            IOUtility.ImportOthers(script);
+            IOUtility.ImportOthers(Others);
             LoadOthers();
         }
         private void ExportOthersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            IOUtility.ExportOthers(script, FileName, OnlyJapanese);
+            IOUtility.ExportOthers(Others, FileName);
         }
 
         private void ImportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            IOUtility.ImportStrings(script);
+            IOUtility.ImportStrings(script.Strings);
             LoadStrings();
         }
 
         private void ExportStringsCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            IOUtility.ExportStrings(script, FileName);
+            IOUtility.ExportStrings(script.Strings, FileName);
         }
 
         private FindWindow FindWindow
@@ -518,9 +537,21 @@ namespace MSEGui
             }
             else if (SelectedTab == SelectedTab.Others)
             {
-                foreach (var item in Contents.Skip(start))
+                foreach (var item in Others.Skip(start))
                 {
-                    if (item.Value.Text.Contains(text))
+                    if (item.Text.Contains(text))
+                    {
+                        ContentsListView.SelectedItem = item;
+                        ContentsListView.ScrollIntoView(item);
+                        findWindow.Start = ContentsListView.SelectedIndex + 1;
+                        break;
+                    }
+                }
+            } if (SelectedTab == SelectedTab.Others)
+            {
+                foreach (var item in Others.Skip(start))
+                {
+                    if (item.Text.Contains(text))
                     {
                         ContentsListView.SelectedItem = item;
                         ContentsListView.ScrollIntoView(item);
@@ -544,12 +575,13 @@ namespace MSEGui
         {
             if (sender is TextBox textBox)
             {
-                if (SelectedTab == SelectedTab.Strings && textBox.DataContext is StringsListItem stringsItem)
+                if (SelectedTab == SelectedTab.Strings && textBox.DataContext is StringListItem stringsItem)
                 {
                     StringsListView.SelectedIndex = Strings.IndexOf(stringsItem);
-                }else if(SelectedTab == SelectedTab.Others && textBox.DataContext is ContentsListItem contentItem)
+                }
+                else if (SelectedTab == SelectedTab.Others && textBox.DataContext is StringItem stringitem)
                 {
-                    ContentsListView.SelectedIndex = Contents.IndexOf(contentItem);
+                    ContentsListView.SelectedIndex = Others.IndexOf(stringitem);
                 }
             }
         }
@@ -585,10 +617,10 @@ namespace MSEGui
             try
             {
                 var index = 0;
-                foreach(var strings in Script.Strings)
+                foreach (var strings in Script.Strings)
                 {
                     index++;
-                    strings.Texts[0].Text = "<"+index.ToString() + ">"+strings.Texts[0].Text;
+                    strings.Texts[0].Text = "<" + index.ToString() + ">" + strings.Texts[0].Text;
                 }
             }
             catch
@@ -597,355 +629,94 @@ namespace MSEGui
             }
         }
 
-        private class ChapterString
-        {
-            public ChapterString()
-            {
-
-            }
-            public ChapterString(string name, uint index)
-            {
-                Name = name;
-                Index = index;
-            }
-
-            public string Name { get; set; }
-            public uint Index { get; set; }
-        }
-        //private StringsItem FindLastString(int currentIndex)
-        //{
-        //    for(var i = currentIndex;i != -1; i--)
-        //    {
-        //        var command = Script.Commands[i];
-        //        if(command.Type == CommandType.PUSH_STR_BYTE || command.Type == CommandType.PUSH_STR_SHORT || command.Type == CommandType.PUSH_STR_INT)
-        //        {
-        //            return command.Args[0].Str;
-        //        }
-        //    }
-        //    return null;
-        //}
-        static string ExtractValue(string input, string pattern)
-        {
-            Match match = Regex.Match(input, pattern);
-            if (match.Success)
-            {
-                return match.Groups[1].Value;
-            }
-            else
-            {
-                return null;
-            }
-        }
-        private void HandleCommand(CommandItem command)
-        {
-            switch (command.Type)
-            {
-                case CommandType.JMP:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.JNZ:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.JZ:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.CALL_UINT_ID:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.CALL_BYTE_ID:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.POP_R32:
-                    vmStack.Pop();
-                    break;
-                case CommandType.PUSH_INT32:
-                    pParma = (uint)command.Args[0].Value;
-                    vmStack.Push(pParma | 0x80000000);
-                    break;
-                case CommandType.PUSH_UINT32:
-                    pParma = (uint)command.Args[0].Value;
-                    vmStack.Push(pParma | 0x80000000);
-                    break;
-                case CommandType.PUSH_STR_BYTE:
-                    {
-                        pParma = (uint)command.Args[0].Value;
-                        pLastString = command.Args[0].Str.Text;
-                        var pos = pLastString.IndexOf('\n');
-                        if (pos != -1)
-                        {
-                            pLastString = pLastString.Substring(0, pos);
-                        }
-                        vmStack.Push((uint)command.Args[0].Str.Offset);
-                        break;
-                    }
-                case CommandType.PUSH_STR_SHORT:
-                    {
-                        pParma = (uint)command.Args[0].Value;
-                        pLastString = command.Args[0].Str.Text;
-                        var pos = pLastString.IndexOf('\n');
-                        if (pos != -1)
-                        {
-                            pLastString = pLastString.Substring(0, pos);
-                        }
-                        vmStack.Push((uint)command.Args[0].Str.Offset);
-                        break;
-                    }
-                case CommandType.NONE:
-                    break;
-                case CommandType.PUSH_STR_INT:
-                    {
-                        pParma = (uint)command.Args[0].Value;
-                        pLastString = command.Args[0].Str.Text;
-                        var pos = pLastString.IndexOf('\n');
-                        if (pos != -1)
-                        {
-                            pLastString = pLastString.Substring(0, pos);
-                        }
-                        vmStack.Push((uint)command.Args[0].Str.Offset);
-                        break;
-                    }
-                case CommandType.POP:
-                    vmStack.Pop();
-                    break;
-                case CommandType.PUSH_0:    
-                    vmStack.Push(0|0x80000000);
-                    break;
-                case CommandType.UNKNOWN_1:
-                    break;
-                case CommandType.PUSH_0x:
-                    pParma = (uint)command.Args[0].Value;
-                    vmStack.Push(pParma|0x80000000);
-                    break;
-                case CommandType.ADD:
-                    vmStack.Pop();
-                    break;
-                case CommandType.SUB:
-                    vmStack.Pop();
-                    break;
-                case CommandType.MUL:
-                    vmStack.Pop();
-                    break;
-                case CommandType.DIV:
-                    vmStack.Pop();
-                    break;
-                case CommandType.MOD:
-                    vmStack.Pop();
-                    break;
-                case CommandType.AND:
-                    vmStack.Pop();
-                    break;
-                case CommandType.OR:
-                    vmStack.Pop();
-                    break;
-                case CommandType.XOR:
-                    vmStack.Pop();
-                    break;
-                case CommandType.BOOL2:
-                    vmStack.Pop();
-                    break;
-                case CommandType.BOOL3:
-                    vmStack.Pop();
-                    break;
-                case CommandType.ISL:
-                    vmStack.Pop();
-                    break;
-                case CommandType.ISLE:
-                    vmStack.Pop();
-                    break;
-                case CommandType.ISNLE:
-                    vmStack.Pop();
-                    break;
-                case CommandType.ISNL:
-                    vmStack.Pop();
-                    break;
-                case CommandType.ISEQ:
-                    vmStack.Pop();
-                    break;
-                case CommandType.ISNEQ:
-                    vmStack.Pop();
-                    break;
-                case CommandType.SHL:
-                    //vmStack.Pop();
-                    vmStack.Peek();
-                    break;
-                case CommandType.SAR:
-                    vmStack.Pop();
-                    break;
-                case CommandType.CALL_UINT_NO_PARAM:
-                    pParma = (uint)command.Args[0].Value;
-                    vmStack.Push(pParma | 0x80000000);
-                    break;
-                case CommandType.INITSTACK:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.UNKNOWN_2:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                case CommandType.RET:
-                    pParma = (uint)command.Args[0].Value;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        private int ParseJmpTable(List<uint> jmpTable, int currentIndex)
-        {
-            var MALIE_END = Script.Functions["MALIE_END"].Id;
-            for (var command = Script.Commands[currentIndex]; command.Type != CommandType.RET; command = Script.Commands[currentIndex])
-            {
-                HandleCommand(command);
-                if (command.Type == CommandType.CALL_UINT_NO_PARAM)
-                {
-                    if(pParma == MALIE_END)
-                    {
-                        break;
-                    }
-                }
-                else if(command.Type == CommandType.JMP)
-                {
-                    jmpTable.Add((uint)pParma);
-                }
-                currentIndex++;
-            }
-            return currentIndex;
-        }
-        Stack<uint> vmStack;
-        string pLastString;
-        uint pParma;
-
-        private List<ChapterString> ParseScenario(List<string> chapterName,List<uint> chapterIndex)
-        {
-            var v = new List<ChapterString>();
-            var offset = Script.Functions["maliescenario"].VMCodeOffset;
-            var currentIndex = Script.Commands.FindIndex(x => x.Offset == offset);
-
-            var _ms_message = Script.Functions["_ms_message"].Id;
-            var MALIE_NAME = Script.Functions["MALIE_NAME"].Id;
-            var MALIE_LABLE = Script.Functions["MALIE_LABLE"].Id;
-            var tag = Script.Functions["tag"].Id;
-            var FrameLayer_SendMessage = Script.Functions["FrameLayer_SendMessage"].Id;
-            var System_GetResult = Script.Functions["System_GetResult"].Id;
-
-            ChapterString moji = new ChapterString();
-            var jmpTable = new List<uint>();
-            var selectTable = new List<uint>();
-            var jmpIteratorIndex = -1;
-            vmStack = new Stack<uint>(); ;
-
-            for (var command = Script.Commands[currentIndex]; command.Type != CommandType.RET; command = Script.Commands[currentIndex])
-            {
-                HandleCommand(command);
-                if (jmpTable.Count !=0)
-                {
-                    if(jmpIteratorIndex != jmpTable.Count && offset > jmpTable[jmpIteratorIndex])
-                    {
-                        jmpIteratorIndex++;
-                        chapterIndex.Add((uint)v.Count);
-                    }
-                }
-                if(command.Type == CommandType.CALL_UINT_NO_PARAM||command.Type == CommandType.CALL_BYTE_ID || command.Type == CommandType.CALL_UINT_ID)//vCall
-                {
-                    if (pParma == tag)
-                    {
-                        var pos = pLastString.IndexOf("<chapter");
-                        if (pos != -1)
-                        {
-                            var Title = ExtractValue(pLastString, @"<chapter name='(.*?)'>");
-                            
-                            chapterName.Add(Title);
-                            
-                            chapterIndex.Add((uint)v.Count);
-                        }
-                    }
-                    else if (pParma == _ms_message)
-                    {
-                        vmStack.Pop();
-                        moji.Index = vmStack.Peek() & ~0x80000000;
-                        while (vmStack.Count != 0) vmStack.Pop();
-                        vmStack.Push(0);
-                        v.Add(moji);
-                        moji = new ChapterString();
-                        moji.Name = "";
-                        selectTable.Clear();
-                    }
-                    else if (pParma == MALIE_NAME)
-                    {
-                        moji.Name = pLastString;
-                    }
-                    else if (pParma == MALIE_LABLE && v.Count == 0)
-                    {
-                        if (pLastString == "_index")
-                        {
-                            currentIndex = ParseJmpTable(jmpTable,currentIndex);
-                            jmpIteratorIndex = 0;
-                            continue;
-                        }
-                    }
-                    else if(pParma == System_GetResult)
-                    {
-                        foreach(var x in selectTable)
-                        {
-                            Console.WriteLine("Select: " + x.ToString());
-                        }
-                    }
-                    else if(pParma == FrameLayer_SendMessage && vmStack.Count > 4)
-                    {
-                        vmStack.Pop(); vmStack.Pop(); vmStack.Pop(); vmStack.Pop();
-                        var loc = vmStack.Peek();
-                        if (loc > 0)
-                        {
-                            selectTable.Add(loc);
-                        }
-                    }
-                }
-                currentIndex++;
-            }
-
-
-            return v;
-        }
         private void ExportScenesCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
         {
-            try
-            {
-                var chapterNames = new List<string>();
-                var chapterIndex = new List<uint>();
-                var moji = ParseScenario(chapterNames, chapterIndex);
-                var chapterRegion = chapterIndex.Skip(1).Append((uint)moji.Count).ToList();
+            //    try
+            //    {
+            //        var chapterNames = new List<string>();
+            //        var chapterIndex = new List<uint>();
+            //        var moji = ParseScenario(chapterNames, chapterIndex);
+            //        var chapterRegion = chapterIndex.Skip(1).Append((uint)moji.Count).ToList();
 
-                if (!Directory.Exists("output"))
-                {
-                    Directory.CreateDirectory("output");
-                }
+            //        if (!Directory.Exists("output"))
+            //        {
+            //            Directory.CreateDirectory("output");
+            //        }
 
-                for(int i = 0;i < chapterIndex.Count;i++)
-                {
-                    var index = chapterIndex[i];
-                    string chapterName = chapterNames[i];
-                    var endIndex = (int)chapterRegion[i];
-                    var filename = $"output/{i+1}.{chapterName}.{index}-{endIndex} .txt";
-                    using (var writer = new StreamWriter(filename,false, Encoding.UTF8))
-                    {
-                        for (var j = (int)index; j < endIndex; j++)
-                        {
-                            var name = moji[j].Name;
-                            var text = Script.Strings[(int)moji[j].Index];
-                            if (string.IsNullOrEmpty(name))
-                            {
-                                writer.WriteLine(text);
-                            }
-                            else {
-                                writer.WriteLine($"{name}: {text}");
-                            }
-                            writer.WriteLine();
-                        }
-                    }
-                }
-            }catch(Exception ex)
-            {
-                MessageBox.Show(ex.ToString());
-            }
+            //        for (int i = 0; i < chapterIndex.Count; i++)
+            //        {
+            //            var index = chapterIndex[i];
+            //            string chapterName = chapterNames[i];
+            //            var endIndex = (int)chapterRegion[i];
+            //            var filename = $"output/{i + 1}.{chapterName}.{index}-{endIndex} .txt";
+            //            using (var writer = new StreamWriter(filename, false, Encoding.UTF8))
+            //            {
+            //                for (var j = (int)index; j < endIndex; j++)
+            //                {
+            //                    var name = moji[j].Name;
+            //                    var text = Script.Strings[(int)moji[j].Index];
+            //                    if (string.IsNullOrEmpty(name))
+            //                    {
+            //                        writer.WriteLine(text);
+            //                    }
+            //                    else
+            //                    {
+            //                        writer.WriteLine($"{name}: {text}");
+            //                    }
+            //                    writer.WriteLine();
+            //                }
+            //            }
+            //        }
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        MessageBox.Show(ex.ToString());
+            //    }
+        }
+
+        private void ScenesListview_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        private void ChaptersListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            SelectedChapter = ChaptersListView.SelectedItem as Chapter;
+            SelectedChapterIndex = ChaptersListView.SelectedIndex;
+        }
+
+        private void ExportChapterCommandBinding_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = SelectedChapter != null;
+        }
+
+        private void ExportChaptersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+
+            IO.IOUtility.ExportChapters(Chapters);
+        }
+
+        private void ImportChaptersCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+
+            IO.IOUtility.ImportChapters(Chapters);
+        }
+
+        private void ImportChapterCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+
+            IO.IOUtility.ImportChapter(SelectedChapter);
+        }
+
+        private void ExportChapterCommandBinding_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+
+            IO.IOUtility.ExportChapter(SelectedChapter);
+        }
+
+        private void FilterCheckBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            LoadOthers();
         }
     }
 }

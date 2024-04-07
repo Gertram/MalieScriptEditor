@@ -41,20 +41,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="classes\ArgumentItem.cs" />
+    <Compile Include="Commands\ByteArgumentCommand.cs" />
+    <Compile Include="Commands\CallCommand.cs" />
+    <Compile Include="Chapter.cs" />
+    <Compile Include="ChapterString.cs" />
+    <Compile Include="ChapterStringConfig.cs" />
     <Compile Include="classes\ArgumentType.cs" />
     <Compile Include="BinaryReaderHelper.cs" />
-    <Compile Include="classes\CommandItem.cs" />
     <Compile Include="classes\CommandType.cs" />
-    <Compile Include="classes\ContentItem.cs" />
     <Compile Include="classes\FunctionItem.cs" />
     <Compile Include="classes\LabelItem.cs" />
+    <Compile Include="Commands\BaseCommand.cs" />
+    <Compile Include="Commands\IJmpCommand.cs" />
+    <Compile Include="Commands\JmpCommand.cs" />
     <Compile Include="MSEScript.cs" />
-    <Compile Include="LineItem.cs" />
+    <Compile Include="classes\LineItem.cs" />
+    <Compile Include="Commands\NoArgumentCommand.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Commands\PushStringCommand.cs" />
     <Compile Include="StringHelpers.cs" />
-    <Compile Include="StringsItem.cs" />
+    <Compile Include="classes\StringItem.cs" />
     <Compile Include="classes\VarItem.cs" />
+    <Compile Include="Commands\UIntArgumentCommand.cs" />
+    <Compile Include="VMParser.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

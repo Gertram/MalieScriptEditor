@@ -24,7 +24,10 @@
         <CommandBinding Command="{x:Static local:WindowCommands.ImportOthers}" Executed="ImportOthersCommandBinding_Executed"/>
         <CommandBinding Command="{x:Static local:WindowCommands.ExportStrings}" Executed="ExportStringsCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
         <CommandBinding Command="{x:Static local:WindowCommands.ExportOthers}" Executed="ExportOthersCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
-        <CommandBinding Command="{x:Static local:WindowCommands.ExportScenes}" Executed="ExportScenesCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
+        <CommandBinding Command="{x:Static local:WindowCommands.ExportChapter}" Executed="ExportChapterCommandBinding_Executed" CanExecute="ExportChapterCommandBinding_CanExecute"/>
+        <CommandBinding Command="{x:Static local:WindowCommands.ImportChapter}" Executed="ImportChapterCommandBinding_Executed" CanExecute="ExportChapterCommandBinding_CanExecute"/>
+        <CommandBinding Command="{x:Static local:WindowCommands.ExportChapters}" Executed="ExportChaptersCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
+        <CommandBinding Command="{x:Static local:WindowCommands.ImportChapters}" Executed="ImportChaptersCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
         <CommandBinding Command="{x:Static local:WindowCommands.Find}" Executed="FindCommandBinding_Executed" CanExecute="FileCommands_CanExecute"/>
     </Window.CommandBindings>
     <Window.InputBindings>
@@ -35,6 +38,7 @@
         <KeyBinding Gesture="Ctrl+F" Command="{x:Static local:WindowCommands.Find}"/>
         <local:MultiKeyBinding Gesture="Ctrl+R,E" Command="{x:Static local:WindowCommands.ExportOthers}"/>
         <local:MultiKeyBinding Gesture="Ctrl+R,I" Command="{x:Static local:WindowCommands.ImportOthers}"/>
+        <local:MultiKeyBinding Gesture="Ctrl+R,C" Command="{x:Static local:WindowCommands.ImportChapter}"/>
     </Window.InputBindings>
     <Grid>
         <Grid.RowDefinitions>
@@ -49,11 +53,14 @@
                 <MenuItem Header="{DynamicResource m_Export}" x:Name="FileExportMenuItem">
                     <MenuItem Header="{DynamicResource m_Others}" x:Name="ExportOthersMenuItem" Command="{x:Static local:WindowCommands.ExportOthers}"/>
                     <MenuItem Header="{DynamicResource m_Strings}" x:Name="ExportStringsMenuItem" Command="{x:Static local:WindowCommands.ExportStrings}"/>
-                    <MenuItem Header="{DynamicResource m_Scenes}" x:Name="ExportScenesMenuItem" Command="{x:Static local:WindowCommands.ExportScenes}"/>
+                    <MenuItem Header="{DynamicResource m_Chapters}" x:Name="ExportChaptersMenuItem" Command="{x:Static local:WindowCommands.ExportChapters}"/>
+                    <MenuItem Header="{DynamicResource m_Chapter}" x:Name="ExportChapterMenuItem" Command="{x:Static local:WindowCommands.ExportChapter}"/>
                 </MenuItem>
                 <MenuItem Header="{DynamicResource m_Import}">
                     <MenuItem Header="{DynamicResource m_Others}" x:Name="ImportOthersMenuItem" Command="{x:Static local:WindowCommands.ImportOthers}"/>
                     <MenuItem Header="{DynamicResource m_Strings}" x:Name="ImportStringsMenuItem" Command="{x:Static local:WindowCommands.ImportStrings}"/>
+                    <MenuItem Header="{DynamicResource m_Chapter}" x:Name="ImportChapterMenuItem" Command="{x:Static local:WindowCommands.ImportChapter}"/>
+                    <MenuItem Header="{DynamicResource m_Chapters}" x:Name="ImportChaptersMenuItem" Command="{x:Static local:WindowCommands.ImportChapters}"/>
                 </MenuItem>
                 <MenuItem Header="{DynamicResource m_Close}" Command="Close" x:Name="CloseMenuItem"/>
             </MenuItem>
@@ -66,6 +73,84 @@
             <MenuItem Header="InsertLineNumber" x:Name="InsertLineNumberMenuItem" Click="InsertLineNumberMenuItem_Click"/>
         </Menu>
         <TabControl Grid.Row="1" x:Name="mTabControl" SelectionChanged="mTabControl_SelectionChanged">
+            <TabItem Header="{DynamicResource m_Chapters}">
+                <TabItem.Content>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200" MinWidth="200"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="1*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView x:Name="ChaptersListView" ItemsSource="{Binding Chapters}" SelectionChanged="ChaptersListView_SelectionChanged">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Title}" />
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Column="0" Content="{DynamicResource m_Index}" ContentStringFormat=" {0} :"/>
+                                <Label Grid.Column="1" Content="{Binding SelectedChapterIndex}" />
+                                <Label Grid.Column="2"  Content="{DynamicResource m_Count}" ContentStringFormat=" {0} :"/>
+                                <Label Grid.Column="3"  Content="{Binding Chapters.Count, Mode=OneWay}" />
+                            </Grid>
+                        </Grid>
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView Grid.Row="0" ItemsSource="{Binding SelectedChapter.Strings}"
+                                  x:Name="ChapterStringsListView"
+                                   Width="Auto"
+                                  ScrollViewer.CanContentScroll="True"
+                                VirtualizingStackPanel.IsVirtualizing="True" 
+                                VirtualizingPanel.IsContainerVirtualizable="True">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="Name" Margin="10,5"/>
+                                            <TextBox Grid.Row="1" Text="{Binding Path=Name,Mode=OneWay}" Margin="10,5" IsReadOnly="True"/>
+                                            <TextBlock Grid.Row="2" Text="Text" Margin="10,5"/>
+                                            <TextBox Grid.Row="3" Text="{Binding Path=Line.Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="10,5"
+                                            GotFocus="TextBox_GotFocus" AcceptsReturn="True"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Column="0" Content="{DynamicResource m_Index}" ContentStringFormat=" {0} :"/>
+                                <Label Grid.Column="1" Content="{Binding SelectedIndex}" />
+                                <Label Grid.Column="2"  Content="{DynamicResource m_Count}" ContentStringFormat=" {0} :"/>
+                                <Label Grid.Column="3"  Content="{Binding Strings.Count, Mode=OneWay}" />
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </TabItem.Content>
+            </TabItem>
             <TabItem Header="{DynamicResource m_Strings}">
                 <TabItem.Content>
                     <Grid>
@@ -122,12 +207,18 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{DynamicResource m_OnlyJapanese}" />
-                            <CheckBox Grid.Column="1" x:Name="OnlyJapaneseCheckBox" IsChecked="{Binding Path=OnlyJapanese, Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                            <ComboBox Grid.Column="1" SelectedIndex="0" x:Name="FilterComboBox" SelectionChanged="FilterCheckBox_SelectionChanged">
+                                <ComboBoxItem>None</ComboBoxItem>
+                                <ComboBoxItem>OnlyJapanese</ComboBoxItem>
+                                <ComboBoxItem>Name</ComboBoxItem>
+                                <ComboBoxItem>Label</ComboBoxItem>
+                                <ComboBoxItem>Chapter</ComboBoxItem>
+                                <ComboBoxItem>Select</ComboBoxItem>
+                            </ComboBox>
                         </Grid>
                         <Grid Grid.Row="1">
                             <ListView 
-                                ItemsSource="{Binding Path=Contents}" x:Name="ContentsListView"
+                                ItemsSource="{Binding Path=Others}" x:Name="ContentsListView"
                                 VirtualizingStackPanel.IsVirtualizing="True" 
                                 VirtualizingPanel.IsContainerVirtualizable="True"
                                 SelectionChanged="ContentsListView_SelectionChanged"
@@ -136,13 +227,11 @@
                                     <DataTemplate>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="50"/>
-                                                <ColumnDefinition Width="Auto"/>
+                                                <!--<ColumnDefinition Width="50"/>-->
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{Binding Path=Index, Mode=OneWay}" VerticalAlignment="Center" Margin="5,0"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Path=Title.Text, Mode=OneWay}" VerticalAlignment="Center" Margin="5,0" />
-                                            <TextBox Grid.Column="2" Text="{Binding Path=Value.Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            <!--<TextBlock Grid.Column="0" Text="{Binding Path=Index, Mode=OneWay}" VerticalAlignment="Center" Margin="5,0"/>-->
+                                            <TextBox Grid.Column="2" Text="{Binding Path=Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                      VerticalAlignment="Center"
                                                      AcceptsReturn="True" GotFocus="TextBox_GotFocus"/>
                                         </Grid>
@@ -160,7 +249,7 @@
                             <Label Grid.Column="0" Content="{DynamicResource m_Index}" ContentStringFormat=" {0} :"/>
                             <Label Grid.Column="1" Content="{Binding SelectedIndex}" />
                             <Label Grid.Column="2"  Content="{DynamicResource m_Count}" ContentStringFormat=" {0} :"/>
-                            <Label Grid.Column="3"  Content="{Binding Contents.Count, Mode=OneWay}" />
+                            <Label Grid.Column="3"  Content="{Binding Others.Count, Mode=OneWay}" />
                         </Grid>
                     </Grid>
                 </TabItem.Content>

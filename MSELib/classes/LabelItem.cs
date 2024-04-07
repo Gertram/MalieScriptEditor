@@ -3,7 +3,7 @@
     public class LabelItem
     {
         public string Name { get; set; }
-        public int VMCodeOffset { get; set; }
-        public CommandItem Command { get; set; }
+        public uint VMCodeOffset { get; set; }
+        public BaseCommand Command { get; set; }
     }
 }
