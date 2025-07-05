@@ -28,6 +28,7 @@ namespace MSELib
         public List<BaseCommand> Commands { get; private set; }
         public Dictionary<uint,BaseCommand> CommandsTable { get; private set; }
         public List<LineItem> Strings { get; private set; }
+        public List<string> Disasm { get; private set; }
         public VMParser(byte[] data)
         {
             using (var reader = new BinaryReader(new MemoryStream(data)))
@@ -246,6 +247,12 @@ namespace MSELib
             DataStrings.Add(stringItem);
             return stringItem;
         }
+        private static Dictionary<CommandType, string> CommandName = new Dictionary<CommandType, string>
+        {
+            {CommandType.JMP,"jmp" },
+            {CommandType.JNZ,"jnz" },
+            {CommandType.JZ,"jz" },
+        };
         private BaseCommand ParseCommand(BinaryReader reader, ref uint pParma, ref StringItem pLastString, Stack<uint> vmStack, List<IJmpCommand> jumps)
         {
             var code = reader.ReadByte();
@@ -260,6 +267,7 @@ namespace MSELib
                         pParma = reader.ReadUInt32();
                         var command = new JmpCommand(commandType, pParma);
                         jumps.Add(command);
+                        Disasm.Add($"{CommandName[commandType]} to {pParma:X}");
                         return command;
                     }
                 case CommandType.CALL_UINT_ID:
@@ -270,6 +278,7 @@ namespace MSELib
                         {
                             throw new Exception($"Function with Id {pParma} not found");
                         }
+                        Disasm.Add($"CallUint  {function.Name} {arg:X}");
                         return new CallCommand(commandType, function, arg);
                     }
                 case CommandType.CALL_BYTE_ID:
@@ -280,19 +289,24 @@ namespace MSELib
                         {
                             throw new Exception($"Function with Id {pParma} not found");
                         }
+                        Disasm.Add($"CallByte  {function.Name} {arg:X}");
                         return new CallCommand(commandType, function, arg);
                     }
                 case CommandType.MASK_VEIP:
+                    Disasm.Add($"Mask vEIP");
                     return new NoArgumentCommand(commandType);
                 case CommandType.PUSH_R32:
+                    Disasm.Add($"PUSH_R32");
                     return new NoArgumentCommand(commandType);
                 case CommandType.POP_R32:
+                    Disasm.Add($"POP_R32");
                     vmStack.Pop();
                     return new NoArgumentCommand(commandType);
                 case CommandType.PUSH_INT32:
                 case CommandType.PUSH_UINT32:
                     pParma = reader.ReadUInt32();
                     vmStack.Push(pParma | 0x80000000);
+                    Disasm.Add($"PUSH_INT32 {pParma:X}");
                     return new UIntArgumentCommand(commandType, pParma);
                 case CommandType.PUSH_STR_BYTE:
                     {
@@ -300,6 +314,7 @@ namespace MSELib
                         var offset = pParma + VMDataOffset;
                         pLastString = ReadDataString(reader, offset);
                         vmStack.Push(offset);
+                        Disasm.Add($"PUSH_STR_BYTE {pLastString.Text}");
                         return new PushStringCommand(commandType, pLastString);
                     }
                 case CommandType.PUSH_STR_SHORT:
@@ -308,9 +323,11 @@ namespace MSELib
                         var offset = pParma + VMDataOffset;
                         pLastString = ReadDataString(reader, offset);
                         vmStack.Push(offset);
+                        Disasm.Add($"PUSH_STR_SHORT {pLastString.Text}");
                         return new PushStringCommand(commandType, pLastString);
                     }
                 case CommandType.NONE:
+                    Disasm.Add($"NONE");
                     return new NoArgumentCommand(commandType);
                 case CommandType.PUSH_STR_INT:
                     {
@@ -318,93 +335,124 @@ namespace MSELib
                         var offset = pParma + VMDataOffset;
                         pLastString = ReadDataString(reader, offset);
                         vmStack.Push(offset);
+                        Disasm.Add($"PUSH_STR_INT {pLastString.Text}");
                         return new PushStringCommand(commandType, pLastString);
                     }
                 case CommandType.POP:
                     vmStack.Pop();
+                    Disasm.Add($"POP");
                     return new NoArgumentCommand(commandType);
                 case CommandType.PUSH_0:
                     vmStack.Push(0 | 0x80000000);
+                    Disasm.Add($"PUSH_0");
                     return new NoArgumentCommand(commandType);
                 case CommandType.UNKNOWN_1:
+                    Disasm.Add($"UNKNOWN1");
                     return new NoArgumentCommand(commandType);
                 case CommandType.PUSH_0x:
                     {
                         var arg = reader.ReadByte();
                         pParma = arg;
                         vmStack.Push(pParma | 0x80000000);
+                        Disasm.Add($"PUSH_0x{arg:X}");
                         return new ByteArgumentCommand(commandType, arg);
                     }
                 case CommandType.PUSH_SP:
+                    Disasm.Add($"PUSH_SP");
                     return new NoArgumentCommand(commandType);
                 case CommandType.NEG:
+                    Disasm.Add($"NEG");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ADD:
                     vmStack.Pop();
+                    Disasm.Add($"ADD");
                     return new NoArgumentCommand(commandType);
                 case CommandType.SUB:
                     vmStack.Pop();
+                    Disasm.Add($"SUB");
                     return new NoArgumentCommand(commandType);
                 case CommandType.MUL:
                     vmStack.Pop();
+                    Disasm.Add($"MUL");
                     return new NoArgumentCommand(commandType);
                 case CommandType.DIV:
                     vmStack.Pop();
+                    Disasm.Add($"DIV");
                     return new NoArgumentCommand(commandType);
                 case CommandType.MOD:
                     vmStack.Pop();
+                    Disasm.Add($"MOD");
                     return new NoArgumentCommand(commandType);
                 case CommandType.AND:
                     vmStack.Pop();
+                    Disasm.Add($"AND");
                     return new NoArgumentCommand(commandType);
                 case CommandType.OR:
                     vmStack.Pop();
+                    Disasm.Add($"OR");
                     return new NoArgumentCommand(commandType);
                 case CommandType.XOR:
                     vmStack.Pop();
+                    Disasm.Add($"XOR");
                     return new NoArgumentCommand(commandType);
                 case CommandType.BOOL1:
+                    Disasm.Add($"BOOL1");
                     return new NoArgumentCommand(commandType);
                 case CommandType.BOOL2:
                     vmStack.Pop();
+                    Disasm.Add($"BOOL2");
                     return new NoArgumentCommand(commandType);
                 case CommandType.BOOL3:
                     vmStack.Pop();
+                    Disasm.Add($"BOOL3");
                     return new NoArgumentCommand(commandType);
                 case CommandType.BOOL4:
+                    Disasm.Add($"BOOL4");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ISL:
                     vmStack.Pop();
+                    Disasm.Add($"ISL");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ISLE:
                     vmStack.Pop();
+                    Disasm.Add($"ISLE");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ISNLE:
                     vmStack.Pop();
+                    Disasm.Add($"ISNLE");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ISNL:
                     vmStack.Pop();
+                    Disasm.Add($"ISNL");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ISEQ:
                     vmStack.Pop();
+                    Disasm.Add($"ISEQ");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ISNEQ:
                     vmStack.Pop();
+                    Disasm.Add($"ISNEQ");
                     return new NoArgumentCommand(commandType);
                 case CommandType.SHL:
                     //vmStack.Pop();
                     //vmStack.Peek();
+                    Disasm.Add($"SHL");
                     return new NoArgumentCommand(commandType);
                 case CommandType.SAR:
                     vmStack.Pop();
+                    Disasm.Add($"SAR");
                     return new NoArgumentCommand(commandType);
                 case CommandType.INC:
+                    Disasm.Add($"INC");
                     return new NoArgumentCommand(commandType);
                 case CommandType.DEC:
+                    Disasm.Add($"DEC");
                     return new NoArgumentCommand(commandType);
                 case CommandType.ADD_REG:
+                    Disasm.Add($"ADD_REG");
                     return new NoArgumentCommand(commandType);
                 case CommandType.DEBUG:
+                    Disasm.Add($"DEBUG");
                     return new NoArgumentCommand(commandType);
                 case CommandType.CALL_UINT_NO_PARAM:
                     {
@@ -414,23 +462,30 @@ namespace MSELib
                         {
                             throw new Exception($"Function with Id {pParma} not found");
                         }
+                        Disasm.Add($"CallUint  {function.Name}");
                         return new CallCommand(commandType, function);
                     }
                 case CommandType.ADD_2:
+                    Disasm.Add($"ADD_2");
                     return new NoArgumentCommand(commandType);
                 case CommandType.FPCOPY:
+                    Disasm.Add($"FPCOPY");
                     return new NoArgumentCommand(commandType);
                 case CommandType.FPGET:
+                    Disasm.Add($"FPGET");
                     return new NoArgumentCommand(commandType);
                 case CommandType.INITSTACK:
                     pParma = reader.ReadUInt32();
+                    Disasm.Add($"INITSTACK {pParma}");
                     return new UIntArgumentCommand(commandType, pParma);
                 case CommandType.Unknown2:
+                    Disasm.Add($"Unknown2");
                     return new NoArgumentCommand(commandType);
                 case CommandType.RET:
                     {
                         var temp = reader.ReadByte();
                         pParma = temp;
+                        Disasm.Add($"RET");
                         return new ByteArgumentCommand(commandType, temp);
                     }
                 default:
@@ -445,6 +500,7 @@ namespace MSELib
             DataStringsByOffset = new Dictionary<uint, StringItem>();
             VMCodeOffset = (uint)reader.BaseStream.Position;
             var end = reader.BaseStream.Position + VMCodeLength;
+            Disasm = new List<string>();
 
             var v = new List<ChapterStringConfig>();
             var scenarioOffset = FunctionsByName["maliescenario"].VMCodeOffset;

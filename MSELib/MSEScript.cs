@@ -37,6 +37,16 @@ namespace MSELib
             Commands = parser.Commands;
             DataStrings = parser.DataStrings;
             Strings = parser.Strings;
+            //var disasm = parser.Disasm;
+            //using(var writer =new StreamWriter("disasm.txt", false, Encoding.UTF8))
+            //{
+            //    for(int i = 0;i < disasm.Count; i++)
+            //    {
+            //        var command = Commands[i];
+            //        var item = disasm[i];
+            //        writer.WriteLine($"{i}:{command.Offset:X}:{item}");
+            //    }
+            //}
         }
         public MSEScript(string filename) : this(File.ReadAllBytes(filename))
         {

@@ -463,7 +463,7 @@ namespace MSEGui
             FindWindow.Focus();
         }
 
-        private void Window_PreviewDragOver(object sender, DragEventArgs e)
+        private void Window_PreviewDragEnter(object sender, DragEventArgs e)
         {
             e.Effects = DragDropEffects.None;
 
